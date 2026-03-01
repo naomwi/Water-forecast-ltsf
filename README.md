@@ -1,6 +1,6 @@
 # AquaPredict: Water Quality Forecasting Framework
 
-**AquaPredict** is a comprehensive, rigorous benchmarking framework developed as part of our group project for predicting critical water quality metrics (EC and pH). 
+**AquaPredict** is a comprehensive, rigorous benchmarking framework developed as part of our group project for predicting critical water quality metrics (EC and pH) of a water treatment factory. 
 
 The project aims to provide strong baseline models and introduces **SpikeDLinear**, an advanced Proposed Model that leverages spiking neural network principles and DLinear structures to handle non-stationary and volatile water quality data effectively.
 

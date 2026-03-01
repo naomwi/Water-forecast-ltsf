@@ -5,7 +5,7 @@
 :: Purpose: Data Analysis, Dashboard Rendering & Validation
 
 echo ===================================================
-echo AquaPredict: Starting Local Analytical Dashboard
+echo HydroPred: Starting Local Analytical Dashboard
 echo ===================================================
 echo.
 

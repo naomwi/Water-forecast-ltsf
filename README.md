@@ -1,6 +1,6 @@
-# AquaPredict: Water Quality Forecasting Framework
+# HydroPred: Water Quality Forecasting Framework
 
-**AquaPredict** is a comprehensive, rigorous benchmarking framework developed as part of our group project for predicting critical water quality metrics (EC and pH) of a water treatment factory. 
+**HydroPred** is a comprehensive, rigorous benchmarking framework developed as part of our group project for predicting critical water quality metrics (EC and pH) of a water treatment factory. 
 
 The project aims to provide strong baseline models and introduces **SpikeDLinear**, an advanced Proposed Model that leverages spiking neural network principles and DLinear structures to handle non-stationary and volatile water quality data effectively.
 
@@ -15,7 +15,7 @@ The project aims to provide strong baseline models and introduces **SpikeDLinear
 - **`Proposed_Models/`**: Source code, checkpoints, and experimental results for the advanced `SpikeDLinear` model.
 - **`CEEMD_Baselines/`**: Implementations of hybrid `CEEMD-DLinear` and `CEEMD-NLinear` baseline models.
 - **`Deep_Baselines/`**: Standard deep learning baselines for time-series forecasting (`LSTM`, `PatchTST`, `Transformer`).
-- **`dashboard/`**: A Streamlit interactive web dashboard for real-time visualization of predictions and an integrated AI chatbot (AquaBot).
+- **`dashboard/`**: A Streamlit interactive web dashboard for real-time visualization of predictions and an integrated AI chatbot (HydroBot).
 - **`scripts/`**: Auxiliary training, hyperparameter tuning, and evaluation scripts.
 - **`visual/`**: Scripts and exported graphics for data visualization and report materials.
 
@@ -34,7 +34,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. Configure Environment (Optional but Recommended)
-For the interactive AI Chatbot (**AquaBot**) to function inside the dashboard, configure your Gemini API Key.
+For the interactive AI Chatbot (**HydroBot**) to function inside the dashboard, configure your Gemini API Key.
 Create a `.env` file in the root directory and add:
 ```env
 GEMINI_API_KEY=your_google_gemini_api_key_here

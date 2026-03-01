@@ -6,7 +6,7 @@ from pathlib import Path
 # PAGE SETTINGS
 # ==========================================
 st.set_page_config(
-    page_title="AquaPredict AI | FPT University",
+    page_title="HydroPred AI | FPT University",
     page_icon="🌊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -247,7 +247,7 @@ with st.sidebar:
     st.markdown(f"""
     <div class="sb-logo-wrap">
         <img src="{FPT_LOGO}" alt="FPT">
-        <div class="sb-brand">AquaPredict AI</div>
+        <div class="sb-brand">HydroPred AI</div>
         <div class="sb-tagline">FPT University · Capstone</div>
         <div class="sb-status"><span class="sb-status-dot"></span>Online</div>
     </div>
@@ -438,7 +438,7 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
     st.markdown("""
     <div class="hero">
         <div class="hero-icon">🌊</div>
-        <h1>AquaPredict AI</h1>
+        <h1>HydroPred AI</h1>
         <p>Intelligent assistant for the FPT University Water Quality Forecasting Capstone Project — powered by Gemini AI.</p>
     </div>
     """, unsafe_allow_html=True)

@@ -53,7 +53,7 @@ def init_gemini():
             report_context = f.read()
 
     system_instruction = (
-        "You are AquaBot, an expert AI Water Quality Data Analyst designed for the FPT University Capstone Project.\n"
+        "You are HydroBot, an expert AI Water Quality Data Analyst designed for the FPT University Capstone Project.\n"
         "Your role is to help users understand water quality metrics (EC, pH) and the performance of your group's predictive models.\n\n"
         "I am providing you with the ENTIRE BENCHMARK RESULTS of all models built in this project across multiple sites and horizons. "
         "You must use this data to confidently answer any question about which model is best, what the MSE/R2 is, and how the models compare.\n\n"
@@ -75,7 +75,7 @@ def get_chat_session():
     """
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "assistant", "content": "Hello! I am **AquaBot**, the intelligent assistant for the FPT University Water Quality Forecasting Project.\nI have studied all the benchmark data for our models and read the entire team project report. Ask me anything!"}
+            {"role": "assistant", "content": "Hello! I am **HydroBot**, the intelligent assistant for the FPT University Water Quality Forecasting Project.\nI have studied all the benchmark data for our models and read the entire team project report. Ask me anything!"}
         ]
     
     # Reload chatbot if it failed previously (e.g. user just added API key)
@@ -124,7 +124,7 @@ def display_chat():
             st.markdown(message["content"])
 
     # Handle new chat input
-    prompt = st.chat_input("Ask AquaBot about any specific model's performance...")
+    prompt = st.chat_input("Ask HydroBot about any specific model's performance...")
     if prompt:
         # Save to history for UI rendering
         st.session_state.chat_history.append({"role": "user", "content": prompt})

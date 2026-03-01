@@ -54,19 +54,9 @@ This will open the dashboard in your default browser at `http://localhost:8501`.
 All pre-run benchmarking results are organized inside their respective models' `results/` folders. 
 If you wish to re-run experiments from scratch, you can use the generalized runners available in the `scripts/` directory (e.g., `python scripts/run_all_experiments.py --quick`).
 
-### 4. Run Remaining Experiments
-To run the remaining experiments, execute the `run_remaining.bat` script:
-- **Windows**: Run `run_remaining.bat`
-- **Manual Command**: 
-  ```bash
-  python run_remaining.py
-  ```
-
-This will run the remaining experiments and save the results in their respective models' `results/` folders.
-
-## 5. Run All Experiments
+### 4. Run All Experiments
 To run all experiments, execute the `run_all_experiments.py` script:
-- **Windows**: Run `run_all_experiments.py`
+- **Windows**: Run `python run_all_experiments.py`
 - **Manual Command**: 
   ```bash
   python run_all_experiments.py

@@ -235,6 +235,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ==========================================
+# SESSION STATE NAVIGATION
+# ==========================================
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "Chat"
+
+def set_page(page_name):
+    st.session_state.current_page = page_name
+
 # Init model once
 init_gemini()
 
@@ -268,152 +277,79 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("ℹ️ About Us"):
-        # ---- Team Members ----
-        st.markdown('<div class="section-heading" style="margin-top:0;">👥 Research Team</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <div class="team-grid">
-            <div class="team-card">
-                <div class="tm-avatar">🧑‍💻</div>
-                <div class="tm-name">Khoi Nguyen</div>
-                <div class="tm-role">Lead Researcher</div>
-            </div>
-            <div class="team-card">
-                <div class="tm-avatar">👩‍🏫</div>
-                <div class="tm-name">Thu Le</div>
-                <div class="tm-role">Supervisor</div>
-            </div>
-            <div class="team-card">
-                <div class="tm-avatar">🧑‍💻</div>
-                <div class="tm-name">Thai Tran</div>
-                <div class="tm-role">Researcher</div>
-            </div>
-            <div class="team-card">
-                <div class="tm-avatar">🧑‍💻</div>
-                <div class="tm-name">Khai Trinh</div>
-                <div class="tm-role">Researcher</div>
-            </div>
-            <div class="team-card">
-                <div class="tm-avatar">🧑‍💻</div>
-                <div class="tm-name">Phuoc Phan</div>
-                <div class="tm-role">Researcher</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.session_state.current_page == "Chat":
+        st.button("📖 About the Project", use_container_width=True, on_click=set_page, args=("About",))
+    else:
+        st.button("💬 Back to Chat", use_container_width=True, on_click=set_page, args=("Chat",))
         
-        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-        
-        # ---- Official Repository ----
-        st.markdown('<div class="section-heading" style="margin-top:0; justify-content: center;">🔗 Official Repository</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <div style="text-align: center; margin-bottom: 8px; padding-bottom: 8px;">
-            <a href="https://github.com/TrumAIFPTU/hydropred" target="_blank" style="color: #ff7b00; text-decoration: none; font-weight: 600; font-size: 0.85rem; padding: 6px 12px; background: rgba(255,123,0,0.1); border-radius: 6px; border: 1px solid rgba(255,123,0,0.2); transition: all 0.2s ease;">
-                TrumAIFPTU/hydropred
-            </a>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with st.expander("📖 About the Project"):
-        # ---- Methodology ----
-        st.markdown('<div class="section-heading" style="margin-top:0;">🔬 Methodology Pipeline</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <div class="method-steps">
-            <div class="method-step">
-                <div class="ms-num">Phase 1</div>
-                <div class="ms-title">CEEMDAN Decomposition</div>
-                <div class="ms-desc">Decouple raw EC signal into 12 IMFs — isolating high-frequency spikes from deterministic trends on raw, unscaled data.</div>
-            </div>
-            <div class="method-step">
-                <div class="ms-num">Phase 2</div>
-                <div class="ms-title">Multi-Branch Architecture</div>
-                <div class="ms-desc">Route high-freq IMFs (1-3) into a Deep MLP spike detector, and low-freq components into a linear trend branch.</div>
-            </div>
-            <div class="method-step">
-                <div class="ms-num">Phase 3</div>
-                <div class="ms-title">Asymmetric Optimization</div>
-                <div class="ms-desc">Custom Spike-Aware Loss (α=5.0, γ=2.0) penalizes under-predictions 5× harder to prevent dangerous oversmoothing.</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-    
-        # ---- Model Comparison ----
-        st.markdown('<div class="section-heading">🧠 Models Benchmarked</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <div class="model-grid">
-            <div class="model-card">
-                <span class="mc-badge proposed">★ PROPOSED</span>
-                <div class="mc-name">SpikeDLinear</div>
-                <div class="mc-type">Hybrid Decomposition-Ensemble</div>
-                <div class="mc-desc">CEEMDAN + Multi-branch MLP/Linear with Asymmetric Spike-Aware Loss. Captures extreme EC spikes that baselines miss.</div>
-            </div>
-            <div class="model-card">
-                <span class="mc-badge">BASELINE</span>
-                <div class="mc-name">CEEMD-DLinear</div>
-                <div class="mc-type">Decomposition + Linear</div>
-                <div class="mc-desc">CEEMDAN signal decomposition paired with a DLinear mapping layer. Excels at global trend accuracy with lowest MSE.</div>
-            </div>
-            <div class="model-card">
-                <span class="mc-badge">BASELINE</span>
-                <div class="mc-name">CEEMD-NLinear</div>
-                <div class="mc-type">Decomposition + Normalized Linear</div>
-                <div class="mc-desc">Normalized variant of LTSF-Linear with CEEMDAN preprocessing for non-stationary time-series robustness.</div>
-            </div>
-            <div class="model-card">
-                <span class="mc-badge">BASELINE</span>
-                <div class="mc-name">LSTM</div>
-                <div class="mc-type">Deep Recurrent Network</div>
-                <div class="mc-desc">Classic Long Short-Term Memory network. Processes sequential dependencies but struggles with long-horizon forecasting.</div>
-            </div>
-            <div class="model-card">
-                <span class="mc-badge">BASELINE</span>
-                <div class="mc-name">PatchTST</div>
-                <div class="mc-type">Transformer (Patched)</div>
-                <div class="mc-desc">State-of-the-art Transformer using patching and channel independence for efficient local semantic capture.</div>
-            </div>
-            <div class="model-card">
-                <span class="mc-badge">BASELINE</span>
-                <div class="mc-name">Transformer</div>
-                <div class="mc-type">Vanilla Self-Attention</div>
-                <div class="mc-desc">Standard self-attention mechanism for deep global semantic modeling of temporal sequences.</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+    .github-footer {
+        position: fixed;
+        bottom: 24px;
+        left: 20px;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: rgba(255,123,0,0.1);
+        border: 1px solid rgba(255,123,0,0.2);
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+    .github-footer:hover {
+        background: rgba(255,123,0,0.2);
+        border-color: #ff7b00;
+        transform: translateY(-2px);
+    }
+    .github-footer svg {
+        fill: #ff7b00;
+        width: 18px;
+        height: 18px;
+    }
+    .github-footer span {
+        color: #ff7b00;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    </style>
+    <a href="https://github.com/TrumAIFPTU/hydropred" target="_blank" class="github-footer">
+        <svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        <span>TrumAIFPTU/hydropred</span>
+    </a>
+    """, unsafe_allow_html=True)
 
 
 # ==========================================
 # MAIN CONTENT
 # ==========================================
-if "chat_history" not in st.session_state or len(st.session_state.get("chat_history", [])) <= 1:
-    
-    # ---- CSS for new sections ----
+# ==========================================
+# ABOUT PAGE VIEW
+# ==========================================
+if st.session_state.current_page == "About":
     st.markdown("""
     <style>
-    /* Stat cards row */
-    .stats-row {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 14px;
-        padding: 0 0 24px;
-    }
-    .stat-card {
-        border-radius: 14px;
-        padding: 20px;
-        border: 1px solid rgba(128,128,128,0.12);
+    .about-header {
         text-align: center;
+        padding: 40px 0 20px;
+        animation: fadeUp 0.6s ease-out;
     }
-    .stat-card .stat-num {
-        font-size: 1.6rem;
+    .about-header h1 {
+        font-size: 2.5rem;
         font-weight: 800;
-        letter-spacing: -0.5px;
-        margin-bottom: 2px;
+        background: linear-gradient(135deg, #ffffff, #a3a3a3);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 12px;
     }
-    .stat-card .stat-label {
-        font-size: 0.78rem;
-        opacity: 0.55;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    .about-header p {
+        font-size: 1.1rem;
+        color: rgba(255,255,255,0.6);
+        max-width: 600px;
+        margin: 0 auto;
     }
     
     /* Section heading */
@@ -429,9 +365,9 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
     /* Model grid */
     .model-grid {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 32px;
     }
     .model-card {
         border: 1px solid rgba(128,128,128,0.12);
@@ -477,9 +413,9 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
     /* Team members */
     .team-grid {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin-bottom: 24px;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 16px;
+        margin-bottom: 40px;
     }
     .team-card {
         border: 1px solid rgba(128,128,128,0.1);
@@ -511,9 +447,9 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
     /* Methodology */
     .method-steps {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin-bottom: 24px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 32px;
     }
     .method-step {
         border: 1px solid rgba(128,128,128,0.12);
@@ -546,39 +482,180 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
         margin: 8px 0;
     }
     </style>
-    """, unsafe_allow_html=True)
     
-    # ---- Hero ----
-    st.markdown("""
-    <div class="hero">
-        <div class="hero-icon">🌊</div>
-        <h1>HydroPred AI</h1>
-        <p>Intelligent assistant for the FPT University Water Quality Forecasting Capstone Project — powered by Gemini AI.</p>
+    <div class="about-header">
+        <h1>About the Project</h1>
+        <p>A deep dive into the methodology, architectures, and the team behind HydroPred AI.</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # ---- Quick Stats ----
+    # ---- Methodology ----
+    st.markdown('<div class="section-heading" style="margin-top:0;">🔬 Methodology Pipeline</div>', unsafe_allow_html=True)
     st.markdown("""
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-num">43,813</div>
-            <div class="stat-label">Observations</div>
+    <div class="method-steps">
+        <div class="method-step">
+            <div class="ms-num">Phase 1</div>
+            <div class="ms-title">CEEMDAN Decomposition</div>
+            <div class="ms-desc">Decouple raw EC signal into 12 IMFs — isolating high-frequency spikes from deterministic trends on raw, unscaled data.</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-num">6</div>
-            <div class="stat-label">AI Models</div>
+        <div class="method-step">
+            <div class="ms-num">Phase 2</div>
+            <div class="ms-title">Multi-Branch Architecture</div>
+            <div class="ms-desc">Route high-freq IMFs (1-3) into a Deep MLP spike detector, and low-freq components into a linear trend branch.</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-num">6</div>
-            <div class="stat-label">Horizons</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-num">2021–2025</div>
-            <div class="stat-label">Time Span</div>
+        <div class="method-step">
+            <div class="ms-num">Phase 3</div>
+            <div class="ms-title">Asymmetric Optimization</div>
+            <div class="ms-desc">Custom Spike-Aware Loss (α=5.0, γ=2.0) penalizes under-predictions 5× harder to prevent dangerous oversmoothing.</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
 
-display_chat()
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+
+    # ---- Model Comparison ----
+    st.markdown('<div class="section-heading">🧠 Models Benchmarked</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="model-grid">
+        <div class="model-card">
+            <span class="mc-badge proposed">★ PROPOSED</span>
+            <div class="mc-name">SpikeDLinear</div>
+            <div class="mc-type">Hybrid Decomposition-Ensemble</div>
+            <div class="mc-desc">CEEMDAN + Multi-branch MLP/Linear with Asymmetric Spike-Aware Loss. Captures extreme EC spikes that baselines miss.</div>
+        </div>
+        <div class="model-card">
+            <span class="mc-badge">BASELINE</span>
+            <div class="mc-name">CEEMD-DLinear</div>
+            <div class="mc-type">Decomposition + Linear</div>
+            <div class="mc-desc">CEEMDAN signal decomposition paired with a DLinear mapping layer. Excels at global trend accuracy with lowest MSE.</div>
+        </div>
+        <div class="model-card">
+            <span class="mc-badge">BASELINE</span>
+            <div class="mc-name">CEEMD-NLinear</div>
+            <div class="mc-type">Decomposition + Normalized Linear</div>
+            <div class="mc-desc">Normalized variant of LTSF-Linear with CEEMDAN preprocessing for non-stationary time-series robustness.</div>
+        </div>
+        <div class="model-card">
+            <span class="mc-badge">BASELINE</span>
+            <div class="mc-name">LSTM</div>
+            <div class="mc-type">Deep Recurrent Network</div>
+            <div class="mc-desc">Classic Long Short-Term Memory network. Processes sequential dependencies but struggles with long-horizon forecasting.</div>
+        </div>
+        <div class="model-card">
+            <span class="mc-badge">BASELINE</span>
+            <div class="mc-name">PatchTST</div>
+            <div class="mc-type">Transformer (Patched)</div>
+            <div class="mc-desc">State-of-the-art Transformer using patching and channel independence for efficient local semantic capture.</div>
+        </div>
+        <div class="model-card">
+            <span class="mc-badge">BASELINE</span>
+            <div class="mc-name">Transformer</div>
+            <div class="mc-type">Vanilla Self-Attention</div>
+            <div class="mc-desc">Standard self-attention mechanism for deep global semantic modeling of temporal sequences.</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+
+    # ---- Team Members ----
+    st.markdown('<div class="section-heading">👥 Research Team</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="team-grid">
+        <div class="team-card">
+            <div class="tm-avatar">🧑‍💻</div>
+            <div class="tm-name">Khoi Nguyen</div>
+            <div class="tm-role">Lead Researcher</div>
+        </div>
+        <div class="team-card">
+            <div class="tm-avatar">👩‍🏫</div>
+            <div class="tm-name">Thu Le</div>
+            <div class="tm-role">Supervisor</div>
+        </div>
+        <div class="team-card">
+            <div class="tm-avatar">🧑‍💻</div>
+            <div class="tm-name">Thai Tran</div>
+            <div class="tm-role">Researcher</div>
+        </div>
+        <div class="team-card">
+            <div class="tm-avatar">🧑‍💻</div>
+            <div class="tm-name">Khai Trinh</div>
+            <div class="tm-role">Researcher</div>
+        </div>
+        <div class="team-card">
+            <div class="tm-avatar">🧑‍💻</div>
+            <div class="tm-name">Phuoc Phan</div>
+            <div class="tm-role">Researcher</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+elif st.session_state.current_page == "Chat":
+    if "chat_history" not in st.session_state or len(st.session_state.get("chat_history", [])) <= 1:
+        
+        # ---- CSS for new sections ----
+        st.markdown("""
+        <style>
+        /* Stat cards row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            padding: 0 0 24px;
+        }
+        .stat-card {
+            border-radius: 14px;
+            padding: 20px;
+            border: 1px solid rgba(128,128,128,0.12);
+            text-align: center;
+        }
+        .stat-card .stat-num {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            margin-bottom: 2px;
+        }
+        .stat-card .stat-label {
+            font-size: 0.78rem;
+            opacity: 0.55;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # ---- Hero ----
+        st.markdown("""
+        <div class="hero">
+            <div class="hero-icon">🌊</div>
+            <h1>HydroPred AI</h1>
+            <p>Intelligent assistant for the FPT University Water Quality Forecasting Capstone Project — powered by Gemini AI.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # ---- Quick Stats ----
+        st.markdown("""
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-num">43,813</div>
+                <div class="stat-label">Observations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">6</div>
+                <div class="stat-label">AI Models</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">6</div>
+                <div class="stat-label">Horizons</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-num">2021–2025</div>
+                <div class="stat-label">Time Span</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    
+    display_chat()
 

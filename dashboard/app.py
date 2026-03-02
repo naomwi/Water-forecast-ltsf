@@ -269,6 +269,51 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     with st.expander("ℹ️ About Us"):
+        # ---- Team Members ----
+        st.markdown('<div class="section-heading" style="margin-top:0;">👥 Research Team</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="team-grid">
+            <div class="team-card">
+                <div class="tm-avatar">🧑‍💻</div>
+                <div class="tm-name">Khoi Nguyen</div>
+                <div class="tm-role">Lead Researcher</div>
+            </div>
+            <div class="team-card">
+                <div class="tm-avatar">👩‍🏫</div>
+                <div class="tm-name">Thu Le</div>
+                <div class="tm-role">Supervisor</div>
+            </div>
+            <div class="team-card">
+                <div class="tm-avatar">🧑‍💻</div>
+                <div class="tm-name">Thai Tran</div>
+                <div class="tm-role">Researcher</div>
+            </div>
+            <div class="team-card">
+                <div class="tm-avatar">🧑‍💻</div>
+                <div class="tm-name">Khai Trinh</div>
+                <div class="tm-role">Researcher</div>
+            </div>
+            <div class="team-card">
+                <div class="tm-avatar">🧑‍💻</div>
+                <div class="tm-name">Phuoc Phan</div>
+                <div class="tm-role">Researcher</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+        
+        # ---- Official Repository ----
+        st.markdown('<div class="section-heading" style="margin-top:0; justify-content: center;">🔗 Official Repository</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="text-align: center; margin-bottom: 8px; padding-bottom: 8px;">
+            <a href="https://github.com/TrumAIFPTU/hydropred" target="_blank" style="color: #ff7b00; text-decoration: none; font-weight: 600; font-size: 0.85rem; padding: 6px 12px; background: rgba(255,123,0,0.1); border-radius: 6px; border: 1px solid rgba(255,123,0,0.2); transition: all 0.2s ease;">
+                TrumAIFPTU/hydropred
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with st.expander("📖 About the Project"):
         # ---- Methodology ----
         st.markdown('<div class="section-heading" style="margin-top:0;">🔬 Methodology Pipeline</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -332,40 +377,6 @@ with st.sidebar:
                 <div class="mc-name">Transformer</div>
                 <div class="mc-type">Vanilla Self-Attention</div>
                 <div class="mc-desc">Standard self-attention mechanism for deep global semantic modeling of temporal sequences.</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-    
-        # ---- Team Members ----
-        st.markdown('<div class="section-heading">👥 Research Team</div>', unsafe_allow_html=True)
-        st.markdown("""
-        <div class="team-grid">
-            <div class="team-card">
-                <div class="tm-avatar">🧑‍💻</div>
-                <div class="tm-name">Khoi Nguyen</div>
-                <div class="tm-role">Lead Researcher</div>
-            </div>
-            <div class="team-card">
-                <div class="tm-avatar">👩‍🏫</div>
-                <div class="tm-name">Thu Le</div>
-                <div class="tm-role">Supervisor</div>
-            </div>
-            <div class="team-card">
-                <div class="tm-avatar">🧑‍💻</div>
-                <div class="tm-name">Thai Tran</div>
-                <div class="tm-role">Researcher</div>
-            </div>
-            <div class="team-card">
-                <div class="tm-avatar">🧑‍💻</div>
-                <div class="tm-name">Khai Trinh</div>
-                <div class="tm-role">Researcher</div>
-            </div>
-            <div class="team-card">
-                <div class="tm-avatar">🧑‍💻</div>
-                <div class="tm-name">Phuoc Phan</div>
-                <div class="tm-role">Researcher</div>
             </div>
         </div>
         """, unsafe_allow_html=True)

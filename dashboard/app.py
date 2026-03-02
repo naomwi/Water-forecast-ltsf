@@ -28,7 +28,7 @@ st.markdown("""
     
     /* Hide default Streamlit headers */
     #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
+    header {background: transparent !important;}
     footer {visibility: hidden;}
     [data-testid="stAppViewContainer"] > .main {
         padding-top: 1rem !important;
@@ -268,6 +268,109 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    with st.expander("ℹ️ About Us"):
+        # ---- Methodology ----
+        st.markdown('<div class="section-heading" style="margin-top:0;">🔬 Methodology Pipeline</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="method-steps">
+            <div class="method-step">
+                <div class="ms-num">Phase 1</div>
+                <div class="ms-title">CEEMDAN Decomposition</div>
+                <div class="ms-desc">Decouple raw EC signal into 12 IMFs — isolating high-frequency spikes from deterministic trends on raw, unscaled data.</div>
+            </div>
+            <div class="method-step">
+                <div class="ms-num">Phase 2</div>
+                <div class="ms-title">Multi-Branch Architecture</div>
+                <div class="ms-desc">Route high-freq IMFs (1-3) into a Deep MLP spike detector, and low-freq components into a linear trend branch.</div>
+            </div>
+            <div class="method-step">
+                <div class="ms-num">Phase 3</div>
+                <div class="ms-title">Asymmetric Optimization</div>
+                <div class="ms-desc">Custom Spike-Aware Loss (α=5.0, γ=2.0) penalizes under-predictions 5× harder to prevent dangerous oversmoothing.</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    
+        # ---- Model Comparison ----
+        st.markdown('<div class="section-heading">🧠 Models Benchmarked</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="model-grid">
+            <div class="model-card">
+                <span class="mc-badge proposed">★ PROPOSED</span>
+                <div class="mc-name">SpikeDLinear</div>
+                <div class="mc-type">Hybrid Decomposition-Ensemble</div>
+                <div class="mc-desc">CEEMDAN + Multi-branch MLP/Linear with Asymmetric Spike-Aware Loss. Captures extreme EC spikes that baselines miss.</div>
+            </div>
+            <div class="model-card">
+                <span class="mc-badge">BASELINE</span>
+                <div class="mc-name">CEEMD-DLinear</div>
+                <div class="mc-type">Decomposition + Linear</div>
+                <div class="mc-desc">CEEMDAN signal decomposition paired with a DLinear mapping layer. Excels at global trend accuracy with lowest MSE.</div>
+            </div>
+            <div class="model-card">
+                <span class="mc-badge">BASELINE</span>
+                <div class="mc-name">CEEMD-NLinear</div>
+                <div class="mc-type">Decomposition + Normalized Linear</div>
+                <div class="mc-desc">Normalized variant of LTSF-Linear with CEEMDAN preprocessing for non-stationary time-series robustness.</div>
+            </div>
+            <div class="model-card">
+                <span class="mc-badge">BASELINE</span>
+                <div class="mc-name">LSTM</div>
+                <div class="mc-type">Deep Recurrent Network</div>
+                <div class="mc-desc">Classic Long Short-Term Memory network. Processes sequential dependencies but struggles with long-horizon forecasting.</div>
+            </div>
+            <div class="model-card">
+                <span class="mc-badge">BASELINE</span>
+                <div class="mc-name">PatchTST</div>
+                <div class="mc-type">Transformer (Patched)</div>
+                <div class="mc-desc">State-of-the-art Transformer using patching and channel independence for efficient local semantic capture.</div>
+            </div>
+            <div class="model-card">
+                <span class="mc-badge">BASELINE</span>
+                <div class="mc-name">Transformer</div>
+                <div class="mc-type">Vanilla Self-Attention</div>
+                <div class="mc-desc">Standard self-attention mechanism for deep global semantic modeling of temporal sequences.</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    
+        # ---- Team Members ----
+        st.markdown('<div class="section-heading">👥 Research Team</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div class="team-grid">
+            <div class="team-card">
+                <div class="tm-avatar">🧑‍💻</div>
+                <div class="tm-name">Khoi Nguyen</div>
+                <div class="tm-role">Lead Researcher</div>
+            </div>
+            <div class="team-card">
+                <div class="tm-avatar">👩‍🏫</div>
+                <div class="tm-name">Thu Le</div>
+                <div class="tm-role">Supervisor</div>
+            </div>
+            <div class="team-card">
+                <div class="tm-avatar">🧑‍💻</div>
+                <div class="tm-name">Thai Tran</div>
+                <div class="tm-role">Researcher</div>
+            </div>
+            <div class="team-card">
+                <div class="tm-avatar">🧑‍💻</div>
+                <div class="tm-name">Khai Trinh</div>
+                <div class="tm-role">Researcher</div>
+            </div>
+            <div class="team-card">
+                <div class="tm-avatar">🧑‍💻</div>
+                <div class="tm-name">Phuoc Phan</div>
+                <div class="tm-role">Researcher</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
 # ==========================================
 # MAIN CONTENT
 # ==========================================
@@ -315,7 +418,7 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
     /* Model grid */
     .model-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: 1fr;
         gap: 12px;
         margin-bottom: 20px;
     }
@@ -363,7 +466,7 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
     /* Team members */
     .team-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: 1fr;
         gap: 12px;
         margin-bottom: 24px;
     }
@@ -397,7 +500,7 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
     /* Methodology */
     .method-steps {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: 1fr;
         gap: 12px;
         margin-bottom: 24px;
     }
@@ -465,107 +568,6 @@ if "chat_history" not in st.session_state or len(st.session_state.get("chat_hist
     </div>
     """, unsafe_allow_html=True)
     
-    # ---- Methodology ----
-    st.markdown('<div class="section-heading">🔬 Methodology Pipeline</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="method-steps">
-        <div class="method-step">
-            <div class="ms-num">Phase 1</div>
-            <div class="ms-title">CEEMDAN Decomposition</div>
-            <div class="ms-desc">Decouple raw EC signal into 12 IMFs — isolating high-frequency spikes from deterministic trends on raw, unscaled data.</div>
-        </div>
-        <div class="method-step">
-            <div class="ms-num">Phase 2</div>
-            <div class="ms-title">Multi-Branch Architecture</div>
-            <div class="ms-desc">Route high-freq IMFs (1-3) into a Deep MLP spike detector, and low-freq components into a linear trend branch.</div>
-        </div>
-        <div class="method-step">
-            <div class="ms-num">Phase 3</div>
-            <div class="ms-title">Asymmetric Optimization</div>
-            <div class="ms-desc">Custom Spike-Aware Loss (α=5.0, γ=2.0) penalizes under-predictions 5× harder to prevent dangerous oversmoothing.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-    
-    # ---- Model Comparison ----
-    st.markdown('<div class="section-heading">🧠 Models Benchmarked</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="model-grid">
-        <div class="model-card">
-            <span class="mc-badge proposed">★ PROPOSED</span>
-            <div class="mc-name">SpikeDLinear</div>
-            <div class="mc-type">Hybrid Decomposition-Ensemble</div>
-            <div class="mc-desc">CEEMDAN + Multi-branch MLP/Linear with Asymmetric Spike-Aware Loss. Captures extreme EC spikes that baselines miss.</div>
-        </div>
-        <div class="model-card">
-            <span class="mc-badge">BASELINE</span>
-            <div class="mc-name">CEEMD-DLinear</div>
-            <div class="mc-type">Decomposition + Linear</div>
-            <div class="mc-desc">CEEMDAN signal decomposition paired with a DLinear mapping layer. Excels at global trend accuracy with lowest MSE.</div>
-        </div>
-        <div class="model-card">
-            <span class="mc-badge">BASELINE</span>
-            <div class="mc-name">CEEMD-NLinear</div>
-            <div class="mc-type">Decomposition + Normalized Linear</div>
-            <div class="mc-desc">Normalized variant of LTSF-Linear with CEEMDAN preprocessing for non-stationary time-series robustness.</div>
-        </div>
-        <div class="model-card">
-            <span class="mc-badge">BASELINE</span>
-            <div class="mc-name">LSTM</div>
-            <div class="mc-type">Deep Recurrent Network</div>
-            <div class="mc-desc">Classic Long Short-Term Memory network. Processes sequential dependencies but struggles with long-horizon forecasting.</div>
-        </div>
-        <div class="model-card">
-            <span class="mc-badge">BASELINE</span>
-            <div class="mc-name">PatchTST</div>
-            <div class="mc-type">Transformer (Patched)</div>
-            <div class="mc-desc">State-of-the-art Transformer using patching and channel independence for efficient local semantic capture.</div>
-        </div>
-        <div class="model-card">
-            <span class="mc-badge">BASELINE</span>
-            <div class="mc-name">Transformer</div>
-            <div class="mc-type">Vanilla Self-Attention</div>
-            <div class="mc-desc">Standard self-attention mechanism for deep global semantic modeling of temporal sequences.</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-    
-    # ---- Team Members ----
-    st.markdown('<div class="section-heading">👥 Research Team</div>', unsafe_allow_html=True)
-    st.markdown("""
-    <div class="team-grid">
-        <div class="team-card">
-            <div class="tm-avatar">🧑‍💻</div>
-            <div class="tm-name">Khoi Nguyen</div>
-            <div class="tm-role">Lead Researcher</div>
-        </div>
-        <div class="team-card">
-            <div class="tm-avatar">👩‍🏫</div>
-            <div class="tm-name">Thu Le</div>
-            <div class="tm-role">Supervisor</div>
-        </div>
-        <div class="team-card">
-            <div class="tm-avatar">🧑‍💻</div>
-            <div class="tm-name">Thai Tran</div>
-            <div class="tm-role">Researcher</div>
-        </div>
-        <div class="team-card">
-            <div class="tm-avatar">🧑‍💻</div>
-            <div class="tm-name">Khai Trinh</div>
-            <div class="tm-role">Researcher</div>
-        </div>
-        <div class="team-card">
-            <div class="tm-avatar">🧑‍💻</div>
-            <div class="tm-name">Phuoc Phan</div>
-            <div class="tm-role">Researcher</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
 
 display_chat()
 

@@ -644,7 +644,23 @@ elif st.session_state.current_page == "Dataset":
     """, unsafe_allow_html=True)
 
     # ---- Load Data ----
-    DATA_PATH = Path(__file__).parent.parent / "Deep_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv"
+    PROJECT_ROOT = Path(__file__).parent.parent
+    DATA_CANDIDATES = [
+        PROJECT_ROOT / "Deep_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
+        PROJECT_ROOT / "CEEMD_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
+        PROJECT_ROOT / "Proposed_Models" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
+        PROJECT_ROOT / "data" / "water_data_2021_2025_clean.csv",
+    ]
+    DATA_PATH = None
+    for candidate in DATA_CANDIDATES:
+        if candidate.exists():
+            DATA_PATH = candidate
+            break
+
+    if DATA_PATH is None:
+        st.warning("⚠️ **Dataset not available in this deployment.**")
+        st.info("The raw dataset file is excluded from the repo to keep it lightweight. Run the dashboard locally to explore the data.")
+        st.stop()
 
     @st.cache_data
     def load_dataset():

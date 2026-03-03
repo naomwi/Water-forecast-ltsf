@@ -1,4 +1,9 @@
 import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.figure_factory as ff
+import numpy as np
 from chatbot import init_gemini, display_chat
 from pathlib import Path
 
@@ -280,47 +285,13 @@ with st.sidebar:
     st.markdown("<br>", unsafe_allow_html=True)
     if st.session_state.current_page == "Chat":
         st.button("📖 About the Project", use_container_width=True, on_click=set_page, args=("About",))
+        st.button("📊 Dataset Explorer", use_container_width=True, on_click=set_page, args=("Dataset",))
+    elif st.session_state.current_page == "About":
+        st.button("💬 Back to Chat", use_container_width=True, on_click=set_page, args=("Chat",))
+        st.button("📊 Dataset Explorer", use_container_width=True, on_click=set_page, args=("Dataset",))
     else:
         st.button("💬 Back to Chat", use_container_width=True, on_click=set_page, args=("Chat",))
-        
-    st.markdown("""
-    <style>
-    .github-footer {
-        position: fixed;
-        bottom: 24px;
-        left: 20px;
-        z-index: 1000;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 14px;
-        background: rgba(255,123,0,0.1);
-        border: 1px solid rgba(255,123,0,0.2);
-        border-radius: 8px;
-        text-decoration: none;
-        transition: all 0.2s ease;
-    }
-    .github-footer:hover {
-        background: rgba(255,123,0,0.2);
-        border-color: #ff7b00;
-        transform: translateY(-2px);
-    }
-    .github-footer svg {
-        fill: #ff7b00;
-        width: 18px;
-        height: 18px;
-    }
-    .github-footer span {
-        color: #ff7b00;
-        font-weight: 600;
-        font-size: 0.85rem;
-    }
-    </style>
-    <a href="https://github.com/TrumAIFPTU/hydropred" target="_blank" class="github-footer">
-        <svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-        <span>TrumAIFPTU/hydropred</span>
-    </a>
-    """, unsafe_allow_html=True)
+        st.button("📖 About the Project", use_container_width=True, on_click=set_page, args=("About",))
 
 
 # ==========================================
@@ -589,6 +560,299 @@ if st.session_state.current_page == "About":
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+
+# ==========================================
+# DATASET EXPLORER PAGE
+# ==========================================
+elif st.session_state.current_page == "Dataset":
+    # ---- CSS for Dataset Explorer ----
+    st.markdown("""
+    <style>
+    .ds-header {
+        text-align: center;
+        padding: 40px 0 20px;
+        animation: fadeUp 0.6s ease-out;
+    }
+    .ds-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #ffffff, #a3a3a3);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 12px;
+    }
+    .ds-header p {
+        font-size: 1.1rem;
+        color: rgba(255,255,255,0.6);
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    .ds-stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+        padding: 20px 0 32px;
+    }
+    .ds-stat-card {
+        border-radius: 14px;
+        padding: 22px 16px;
+        border: 1px solid rgba(255,123,0,0.15);
+        background: rgba(255,123,0,0.04);
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .ds-stat-card:hover {
+        border-color: rgba(255,123,0,0.4);
+        background: rgba(255,123,0,0.08);
+        transform: translateY(-3px);
+    }
+    .ds-stat-card .ds-num {
+        font-size: 1.7rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin-bottom: 4px;
+        background: linear-gradient(135deg, #ff7b00, #ffba59);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .ds-stat-card .ds-label {
+        font-size: 0.78rem;
+        opacity: 0.55;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .ds-section-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: 36px 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ---- Header ----
+    st.markdown("""
+    <div class="ds-header">
+        <h1>📊 Dataset Explorer</h1>
+        <p>Explore the raw USGS water quality monitoring data used to train and evaluate all HydroPred AI models.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ---- Load Data ----
+    DATA_PATH = Path(__file__).parent.parent / "Deep_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv"
+
+    @st.cache_data
+    def load_dataset():
+        df = pd.read_csv(DATA_PATH)
+        df['Time'] = pd.to_datetime(df['Time'], utc=True)
+        df = df.drop(columns=['Unnamed: 0'], errors='ignore')
+        return df
+
+    df_full = load_dataset()
+    feature_cols = ['Temp', 'Flow', 'EC', 'DO', 'pH', 'Turbidity']
+    feature_units = {
+        'Temp': '°C', 'Flow': 'ft³/s', 'EC': 'µS/cm',
+        'DO': 'mg/L', 'pH': 'pH', 'Turbidity': 'NTU'
+    }
+    feature_descriptions = {
+        'Temp': 'Water Temperature',
+        'Flow': 'Stream Discharge Rate',
+        'EC': 'Electrical Conductivity',
+        'DO': 'Dissolved Oxygen',
+        'pH': 'Acidity/Alkalinity Level',
+        'Turbidity': 'Water Clarity'
+    }
+    sites = sorted(df_full['site_no'].unique())
+
+    # ---- Overview Stats ----
+    st.markdown(f"""
+    <div class="ds-stats-row">
+        <div class="ds-stat-card">
+            <div class="ds-num">{len(df_full):,}</div>
+            <div class="ds-label">Total Observations</div>
+        </div>
+        <div class="ds-stat-card">
+            <div class="ds-num">{len(sites)}</div>
+            <div class="ds-label">Monitoring Sites</div>
+        </div>
+        <div class="ds-stat-card">
+            <div class="ds-num">{len(feature_cols)}</div>
+            <div class="ds-label">Water Quality Features</div>
+        </div>
+        <div class="ds-stat-card">
+            <div class="ds-num">2021–2025</div>
+            <div class="ds-label">Time Span</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ---- Site Selector ----
+    st.markdown('<div class="ds-section-title">🏗️ Select Monitoring Site</div>', unsafe_allow_html=True)
+    site_labels = {s: f"USGS Site {s}" for s in sites}
+    selected_site = st.selectbox(
+        "Choose a USGS monitoring site to explore",
+        options=sites,
+        format_func=lambda x: site_labels[x],
+        label_visibility="collapsed"
+    )
+    df_site = df_full[df_full['site_no'] == selected_site].copy().reset_index(drop=True)
+    st.caption(f"Showing **{len(df_site):,}** hourly observations for USGS Site **{selected_site}** — from **{df_site['Time'].min().strftime('%b %d, %Y')}** to **{df_site['Time'].max().strftime('%b %d, %Y')}**")
+
+    # ---- Plotly dark theme template ----
+    plotly_layout = dict(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(family='Inter', color='rgba(255,255,255,0.7)', size=12),
+        xaxis=dict(gridcolor='rgba(255,255,255,0.04)', zerolinecolor='rgba(255,255,255,0.06)'),
+        yaxis=dict(gridcolor='rgba(255,255,255,0.04)', zerolinecolor='rgba(255,255,255,0.06)'),
+        margin=dict(l=40, r=20, t=40, b=40),
+        legend=dict(bgcolor='rgba(0,0,0,0)', font=dict(size=11)),
+        hoverlabel=dict(bgcolor='#1a1a1a', font_size=12, font_family='Inter'),
+    )
+    color_palette = ['#ff7b00', '#ffba59', '#ff4d4d', '#4dc9f6', '#4ade80', '#a78bfa']
+
+    # ---- Raw Data Preview ----
+    st.markdown('<div class="ds-section-title">📋 Raw Data Preview</div>', unsafe_allow_html=True)
+    st.dataframe(
+        df_site.head(100).style.format({
+            'Temp': '{:.1f}', 'Flow': '{:,.1f}', 'EC': '{:.0f}',
+            'DO': '{:.1f}', 'pH': '{:.1f}', 'Turbidity': '{:.1f}'
+        }),
+        use_container_width=True,
+        height=350
+    )
+
+    # ---- Time Series Plots ----
+    st.markdown('<div class="ds-section-title">📈 Time Series — All Parameters</div>', unsafe_allow_html=True)
+
+    # Downsample for performance (every 6 hours)
+    df_plot = df_site.set_index('Time').resample('6h').mean(numeric_only=True).reset_index()
+
+    ts_tabs = st.tabs([f"{feature_descriptions[f]} ({f})" for f in feature_cols])
+    for i, feat in enumerate(feature_cols):
+        with ts_tabs[i]:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=df_plot['Time'], y=df_plot[feat],
+                mode='lines',
+                name=feat,
+                line=dict(color=color_palette[i], width=1.5),
+                fill='tozeroy',
+                fillcolor=f'rgba({int(color_palette[i][1:3],16)},{int(color_palette[i][3:5],16)},{int(color_palette[i][5:7],16)},0.08)'
+            ))
+            fig.update_layout(
+                **plotly_layout,
+                title=dict(text=f'{feature_descriptions[feat]} over Time', font=dict(size=14)),
+                xaxis_title='Date',
+                yaxis_title=f'{feat} ({feature_units[feat]})',
+                height=380,
+                showlegend=False
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ---- Distribution Charts ----
+    st.markdown('<div class="ds-section-title">📊 Feature Distributions</div>', unsafe_allow_html=True)
+
+    dist_cols = st.columns(3)
+    for i, feat in enumerate(feature_cols):
+        with dist_cols[i % 3]:
+            fig = go.Figure()
+            fig.add_trace(go.Histogram(
+                x=df_site[feat],
+                nbinsx=60,
+                marker=dict(
+                    color=color_palette[i],
+                    line=dict(color='rgba(255,255,255,0.1)', width=0.5),
+                    opacity=0.85
+                ),
+                name=feat
+            ))
+            fig.update_layout(
+                **plotly_layout,
+                title=dict(text=f'{feat} ({feature_units[feat]})', font=dict(size=13)),
+                xaxis_title=f'{feat}',
+                yaxis_title='Count',
+                height=280,
+                showlegend=False,
+                bargap=0.03
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    # ---- Correlation Heatmap ----
+    st.markdown('<div class="ds-section-title">🔗 Feature Correlation Heatmap</div>', unsafe_allow_html=True)
+
+    corr_matrix = df_site[feature_cols].corr()
+    fig_corr = go.Figure(data=go.Heatmap(
+        z=corr_matrix.values,
+        x=feature_cols,
+        y=feature_cols,
+        colorscale=[
+            [0.0, '#1a0a00'],
+            [0.25, '#3d1a00'],
+            [0.5, '#0a0a0a'],
+            [0.75, '#7a3d00'],
+            [1.0, '#ff7b00']
+        ],
+        text=np.round(corr_matrix.values, 2),
+        texttemplate='%{text}',
+        textfont=dict(size=13, color='white'),
+        hovertemplate='%{x} vs %{y}<br>Correlation: %{z:.3f}<extra></extra>',
+        zmin=-1, zmax=1,
+        colorbar=dict(
+            title=dict(text='Corr', font=dict(color='rgba(255,255,255,0.6)')),
+            tickfont=dict(color='rgba(255,255,255,0.5)')
+        )
+    ))
+    corr_layout = {**plotly_layout}
+    corr_layout['xaxis'] = dict(side='bottom', tickfont=dict(size=12), gridcolor='rgba(255,255,255,0.04)')
+    corr_layout['yaxis'] = dict(autorange='reversed', tickfont=dict(size=12), gridcolor='rgba(255,255,255,0.04)')
+    fig_corr.update_layout(**corr_layout, height=450)
+    st.plotly_chart(fig_corr, use_container_width=True)
+
+    # ---- Statistical Summary Table ----
+    st.markdown('<div class="ds-section-title">📑 Statistical Summary</div>', unsafe_allow_html=True)
+
+    desc = df_site[feature_cols].describe().T
+    desc.columns = ['Count', 'Mean', 'Std', 'Min', '25%', '50%', '75%', 'Max']
+    desc['Unit'] = [feature_units[f] for f in desc.index]
+    desc['Description'] = [feature_descriptions[f] for f in desc.index]
+    desc = desc[['Description', 'Unit', 'Count', 'Mean', 'Std', 'Min', '25%', '50%', '75%', 'Max']]
+    st.dataframe(
+        desc.style.format({
+            'Count': '{:.0f}', 'Mean': '{:.2f}', 'Std': '{:.2f}',
+            'Min': '{:.2f}', '25%': '{:.2f}', '50%': '{:.2f}',
+            '75%': '{:.2f}', 'Max': '{:.2f}'
+        }),
+        use_container_width=True,
+        height=280
+    )
+
+    # ---- Label Distribution ----
+    st.markdown('<div class="ds-section-title">🏷️ Event Label Distribution</div>', unsafe_allow_html=True)
+    label_counts = df_site['Final_Label'].value_counts().sort_index()
+    fig_label = go.Figure(data=[go.Bar(
+        x=['Normal (0)', 'Event (1)'],
+        y=[label_counts.get(0, 0), label_counts.get(1, 0)],
+        marker=dict(
+            color=['rgba(255,255,255,0.1)', '#ff7b00'],
+            line=dict(color=['rgba(255,255,255,0.2)', '#ffba59'], width=1.5)
+        ),
+        text=[f"{label_counts.get(0, 0):,}", f"{label_counts.get(1, 0):,}"],
+        textposition='outside',
+        textfont=dict(color='rgba(255,255,255,0.7)', size=13)
+    )])
+    fig_label.update_layout(
+        **plotly_layout,
+        height=320,
+        yaxis_title='Number of Observations',
+        showlegend=False
+    )
+    st.plotly_chart(fig_label, use_container_width=True)
 
 
 elif st.session_state.current_page == "Chat":

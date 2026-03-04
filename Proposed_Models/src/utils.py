@@ -61,23 +61,27 @@ def load_and_preprocess_data(file_path, target_col, train_ratio=0.7, site=146350
         high_imfs_raw = np.load(high_path)
         low_imfs_raw = np.load(low_path)
     else:
-        print(f"-> Running CEEMDAN on Raw Data...")
-        # Limit to max 6 cores to prevent ArrayMemoryError on high-thread CPUs
-        num_cores = min(6, multiprocessing.cpu_count())
-        ceemdan = CEEMDAN(trials=20)
-        ceemdan.processes = num_cores
+        # Lấy config
+        ceemdan_trials = int(os.environ.get("CEEMDAN_TRIALS", "10"))  # Default 10 for speed
         
-        # Flatten raw values để đưa vào CEEMDAN
-        imfs = ceemdan(raw_values.flatten(), max_imf=FIXED_NUM_IMFS-1).T
+        print(f"-> Running CEEMDAN on FULL Data ({n_total} points, {ceemdan_trials} trials)...")
+        import multiprocessing
         
-        # Padding/Truncating logic giữ nguyên
+        flat_signal = raw_values.flatten()
+        
+        ceemdan = CEEMDAN(trials=ceemdan_trials)
+        ceemdan.processes = min(8, multiprocessing.cpu_count())  # 8 cores is safe for Vertex RAM
+        
+        imfs = ceemdan(flat_signal, max_imf=FIXED_NUM_IMFS-1).T
+        
+        # Đảm bảo đủ số cột (Fixed IMFs)
         current_cnt = imfs.shape[1]
         if current_cnt < FIXED_NUM_IMFS:
             padding = np.zeros((imfs.shape[0], FIXED_NUM_IMFS - current_cnt))
             imfs = np.concatenate([imfs, padding], axis=1)
         elif current_cnt > FIXED_NUM_IMFS:
             imfs = imfs[:, :FIXED_NUM_IMFS]
-            
+        
         high_imfs_raw = imfs[:, :NUM_HIGH_FREQ]
         low_imfs_raw = imfs[:, NUM_HIGH_FREQ:]
         
@@ -103,10 +107,12 @@ def load_and_preprocess_data(file_path, target_col, train_ratio=0.7, site=146350
     scaler_target = StandardScaler() # Dùng để scale raw_values
     
     # Fit trên tập Train (Chỉ dùng dữ liệu từ 0 -> train_size)
-    scaler_high.fit(high_imfs_raw[:train_size])
-    scaler_low.fit(low_imfs_raw[:train_size])
-    scaler_feat.fit(features_raw[:train_size])
-    scaler_target.fit(raw_values[:train_size])
+    # Cứu cánh: Nếu train_size = 0 (data test hold-out), thì fit trên toàn bộ
+    fit_size = train_size if train_size > 0 else n_total
+    scaler_high.fit(high_imfs_raw[:fit_size])
+    scaler_low.fit(low_imfs_raw[:fit_size])
+    scaler_feat.fit(features_raw[:fit_size])
+    scaler_target.fit(raw_values[:fit_size])
     
     # Transform toàn bộ
     high_imfs_scaled = scaler_high.transform(high_imfs_raw)

@@ -7,6 +7,8 @@ import numpy as np
 from chatbot import init_gemini, display_chat
 from pathlib import Path
 
+import json
+
 # ==========================================
 # PAGE SETTINGS
 # ==========================================
@@ -283,15 +285,16 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.session_state.current_page == "Chat":
-        st.button("📖 About the Project", use_container_width=True, on_click=set_page, args=("About",))
-        st.button("📊 Dataset Explorer", use_container_width=True, on_click=set_page, args=("Dataset",))
-    elif st.session_state.current_page == "About":
-        st.button("💬 Back to Chat", use_container_width=True, on_click=set_page, args=("Chat",))
-        st.button("📊 Dataset Explorer", use_container_width=True, on_click=set_page, args=("Dataset",))
-    else:
-        st.button("💬 Back to Chat", use_container_width=True, on_click=set_page, args=("Chat",))
-        st.button("📖 About the Project", use_container_width=True, on_click=set_page, args=("About",))
+    
+    # Navigation Buttons
+    nav_pages = ["Chat", "About", "Dataset", "Retrain"]
+    nav_icons = {"Chat": "💬 Chat", "About": "📖 About Project", "Dataset": "📊 Dataset", "Retrain": "🔄 Retrain Model"}
+    
+    for page in nav_pages:
+        if st.session_state.current_page == page:
+            st.button(f"✨ {page} (Active)", use_container_width=True, disabled=True)
+        else:
+            st.button(nav_icons[page], use_container_width=True, on_click=set_page, args=(page,))
 
 
 # ==========================================
@@ -644,25 +647,7 @@ elif st.session_state.current_page == "Dataset":
     """, unsafe_allow_html=True)
 
     # ---- Load Data ----
-    PROJECT_ROOT = Path(__file__).parent.parent
-    DATA_CANDIDATES = [
-        PROJECT_ROOT / "Deep_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
-        PROJECT_ROOT / "CEEMD_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
-        PROJECT_ROOT / "Proposed_Models" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
-        PROJECT_ROOT / "Deep_Baselines" / "data" / "USGs" / "water_data_sample.csv.gz",
-        PROJECT_ROOT / "data" / "water_data_2021_2025_clean.csv",
-    ]
-    DATA_PATH = None
-    for candidate in DATA_CANDIDATES:
-        if candidate.exists():
-            DATA_PATH = candidate
-            break
-
-    if DATA_PATH is None:
-        st.warning("⚠️ **Dataset not available in this deployment.**")
-        st.info("The raw dataset file is excluded from the repo to keep it lightweight. Run the dashboard locally to explore the data.")
-
-        st.stop()
+    DATA_PATH = Path(__file__).parent.parent / "Deep_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv"
 
     @st.cache_data
     def load_dataset():
@@ -941,3 +926,315 @@ elif st.session_state.current_page == "Chat":
     
     display_chat()
 
+
+# ==========================================
+# RETRAIN MODEL PAGE
+# ==========================================
+elif st.session_state.current_page == "Retrain":
+    import time
+    from google.cloud import aiplatform, storage
+    import os
+    
+    st.markdown("""
+    <div class="hero" style="padding: 20px 16px 10px;">
+        <div class="hero-icon" style="font-size: 2.5rem; filter: hue-rotate(90deg);">🔄</div>
+        <h1>Retrain Model (Vertex AI)</h1>
+        <p>Upload new data to fine-tune the SpikeDLinear model directly on Google Cloud MLOps pipeline.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        st.markdown("### ⚙️ Training Configuration")
+        seq_len = st.number_input("Sequence Length (History)", min_value=168, value=168, step=24)
+        pred_len = st.number_input("Prediction Length (Horizon)", min_value=24, value=24, step=24)
+        batch_size = st.number_input("Batch Size", min_value=32, value=64, step=32)
+        epochs = st.number_input("Fine-tune Epochs", min_value=10, value=50, step=10)
+        
+        target_col = st.selectbox("Target Feature", options=['EC', 'pH', 'DO', 'Temp', 'Flow', 'Turbidity'])
+        site_no_str = st.text_input("USGS Site No (Optional, ignored if no such column in data)", value="")
+        site_no = int(site_no_str) if site_no_str.strip() else 0
+    
+    with col2:
+        st.markdown("### 🗃️ Upload New Dataset")
+        uploaded_file = st.file_uploader("Upload CSV file (Must contain target and features)", type=['csv'])
+        
+        if uploaded_file is not None:
+            # 1. READ FILE
+            df = pd.read_csv(uploaded_file)
+            st.success(f"File loaded: {len(df):,} rows")
+            
+            # Simple handling for site_no: if column exists and user selected a site, filter it.
+            # But the user said user data won't have site_no, so this just lets them train all.
+            if site_no != 0 and 'site_no' in df.columns:
+                df = df[df['site_no'] == site_no]
+                st.info(f"📍 Filtered to Site **{site_no}**: {len(df):,} rows")
+            else:
+                st.info(f"ℹ️ Training on all {len(df):,} rows.")
+            
+            # 2. RUN CONSTRAINTS
+            validation_passed = True
+            
+            with st.expander("🚦 Data Validation & Constraints", expanded=True):
+                # Constraint 1: Length
+                min_len = seq_len + pred_len + batch_size
+                if len(df) < min_len:
+                    st.error(f"❌ **Constraint 1 Failed:** Data too short. Minimum required: seq_len({seq_len}) + pred_len({pred_len}) + batch_size({batch_size}) = {min_len} rows. Found: {len(df)}.")
+                    validation_passed = False
+                else:
+                    st.success(f"✅ Length acceptable: {len(df)} >= {min_len}")
+                
+                # Constraint 2: Schema
+                required_cols = ['Time', 'Temp', 'Flow', 'EC', 'DO', 'pH', 'Turbidity']
+                missing_cols = [c for c in required_cols if c not in df.columns]
+                if missing_cols:
+                    st.error(f"❌ **Constraint 2 Failed:** Missing required columns: {missing_cols}")
+                    validation_passed = False
+                else:
+                    st.success("✅ Schema matched (All 7 required columns present)")
+                
+                # Constraint 3: Quality
+                nan_count = df.isna().sum().sum()
+                if nan_count > 0:
+                    st.warning(f"⚠️ **Constraint 3 Warning:** Found {nan_count} missing values. Auto-interpolating...")
+                    df = df.interpolate(method='linear').bfill().ffill()
+                    st.success("✅ Missing values handled.")
+                else:
+                    st.success("✅ Data quality optimal (0 missing values).")
+            
+            st.markdown("---")
+            
+            # Action Button with PASSCODE LOCK
+            if validation_passed:
+                st.info("💡 Data is ready. Please enter the Admin Passcode to authorize Cloud Vertex AI resources.")
+                
+                # Use a form to prevent stream-reruns on every keystroke
+                with st.form("admin_auth_form"):
+                    passcode = st.text_input("Admin Passcode", type="password", help="Contact administrator for the deployment passcode.")
+                    bucket_name = st.text_input("GCS Bucket Name", value="hydropred-bucket-2026")
+                    gcp_project = st.text_input("GCP Project ID", value="hydropred")
+                    auth_submitted = st.form_submit_button("Authenticate")
+                
+                if auth_submitted:
+                    if passcode == "HydroPred2026":
+                        st.session_state['is_admin_auth'] = True
+                        st.session_state['gcs_bucket'] = bucket_name
+                        st.session_state['gcp_project'] = gcp_project
+                        st.success("✅ Authentication successful. Vertex AI deployment authorized.")
+                    else:
+                        st.session_state['is_admin_auth'] = False
+                        st.error("❌ Incorrect passcode. Deployment locked.")
+                
+                # If authenticated, show the trigger button
+                if st.session_state.get('is_admin_auth', False):
+                    # Check for service account key file
+                    sa_key_path = Path(__file__).parent / 'gcp-service-account.json'
+                    if not sa_key_path.exists():
+                        st.error(f"⚠️ **Missing Service Account Key:** Please place your `gcp-service-account.json` file in the project root ({sa_key_path.parent}) before deploying.")
+                        st.stop()
+                    
+                    trigger_btn = st.button("🚀 Confirm & Deploy Training Job to Vertex AI", type="primary", use_container_width=True)
+                    
+                    if trigger_btn:
+                        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(sa_key_path)
+                        bucket = st.session_state['gcs_bucket']
+                        project = st.session_state['gcp_project']
+                        region = "asia-southeast1"
+                        
+                        try:
+                            with st.spinner("Initializing Cloud MLOps Pipeline..."):
+                                # Step 1: Upload to GCS
+                                progress_text = "1. Uploading modified data to GCS temp_train/..."
+                                my_bar = st.progress(0, text=progress_text)
+                                
+                                storage_client = storage.Client()
+                                bucket_obj = storage_client.bucket(bucket)
+                                blob = bucket_obj.blob("temp_train/new_data.csv")
+                                
+                                # Convert df to CSV string and upload
+                                csv_data = df.to_csv(index=False)
+                                blob.upload_from_string(csv_data, content_type='text/csv')
+                                gcs_uri = f"gs://{bucket}/temp_train/new_data.csv"
+                                
+                                my_bar.progress(100, text=f"1. Upload complete: {gcs_uri}")
+                                time.sleep(1)
+                                
+                                # Step 2: Trigger Vertex AI
+                                st.info("2. Triggering Vertex AI Custom Container Job...")
+                                
+                                aiplatform.init(project=project, location=region, staging_bucket=f"gs://{bucket}")
+                                
+                                # Define the container URI (assumes user pushed it to this path)
+                                container_uri = f"{region}-docker.pkg.dev/{project}/hydropred-repo/hydropred-trainer:latest"
+                                
+                                job = aiplatform.CustomContainerTrainingJob(
+                                    display_name="hydropred-retrain-job",
+                                    container_uri=container_uri,
+                                    command=["python", "/app/train_vertex.py"],
+                                )
+                                
+                                st.success("🚀 Submitting job to Google Cloud...")
+                                
+                                # Run asynchronously so Streamlit doesn't freeze for 30 minutes
+                                # The user can check the GCP console
+                                model = job.submit(
+                                    machine_type="c2-standard-16",
+                                    replica_count=1,
+                                    args=[
+                                        "--gcs_bucket", bucket,
+                                        "--data_uri", gcs_uri,
+                                        "--target", target_col,
+                                        "--site", str(site_no),
+                                        "--seq_len", str(seq_len),
+                                        "--pred_len", str(pred_len),
+                                        "--epochs", str(epochs),
+                                        "--batch_size", str(batch_size),
+                                        "--timeout_minutes", "90"
+                                    ]
+                                )
+                                
+                                st.balloons()
+                                st.success(f"✨ **Vertex AI Job successfully submitted!**")
+                                
+                                # Store job info for status checking
+                                if hasattr(model, 'resource_name'):
+                                    st.session_state['vertex_job_name'] = model.resource_name
+                                
+                                st.info("""
+                                ⏳ **Training is now running on Google Cloud. This will take approximately 5-15 minutes.**
+                                
+                                What's happening right now:
+                                1. 🖥️ Google is spinning up a 16-core CPU machine for you
+                                2. 📊 CEEMDAN is decomposing your data into frequency components
+                                3. 🧠 SpikeDLinear is being fine-tuned on your new data
+                                4. 📈 The new model will be evaluated against the previous version
+                                
+                                **You can safely close this page.** Results will be saved to GCS.
+                                Come back anytime and click **"🔍 Check Latest Training Results"** below to see if training is done.
+                                """)
+                                
+                                st.markdown(f"""
+                                > **Region:** `{region}` | **Machine:** `n1-standard-16`
+                                > 🔗 [Monitor Live Logs on Google Cloud Console](https://console.cloud.google.com/vertex-ai/training/custom-jobs?project={project})
+                                """)
+                        
+                        except Exception as e:
+                            st.error(f"❌ **Cloud Deployment Failed:** {e}")
+                            st.caption("Please verify your GCP Project ID, Bucket Name, and Service Account permissions.")
+
+    # =========================================================================
+    # Section: Check Training Results (always visible if authenticated)
+    # =========================================================================
+    st.markdown("---")
+    st.markdown("### 📊 Training Results")
+    st.caption("After the Vertex AI job finishes (5-15 min), click below to fetch and display the results.")
+    
+    check_btn = st.button("🔍 Check Latest Training Results", use_container_width=True)
+    
+    if check_btn:
+        sa_key_path = Path(__file__).parent / 'gcp-service-account.json'
+        if not sa_key_path.exists():
+            st.error("⚠️ Missing `gcp-service-account.json`. Cannot connect to GCS.")
+            st.stop()
+        
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(sa_key_path)
+        
+        try:
+            from google.cloud import storage as gcs_storage
+            
+            bucket_name = st.session_state.get('gcs_bucket', 'hydropred-bucket-2026')
+            client = gcs_storage.Client()
+            bucket_obj = client.bucket(bucket_name)
+            blob = bucket_obj.blob("results/metrics_latest.json")
+            
+            if not blob.exists():
+                st.warning("⏳ No results found yet. The training job may still be running. Try again in a few minutes.")
+            else:
+                metrics_data = json.loads(blob.download_as_text())
+                
+                # --- Verdict Banner ---
+                is_better = metrics_data.get("model_is_better", False)
+                new_ver = metrics_data.get("version", "?")
+                old_ver = metrics_data.get("previous_version", "?")
+                
+                if is_better:
+                    st.success(f"🏆 **Model {new_ver} is BETTER than {old_ver}!** Auto-deploy recommended.")
+                else:
+                    st.warning(f"⚠️ **Model {new_ver} is WORSE than {old_ver}.** Consider keeping the current model.")
+                
+                # --- Metrics Table ---
+                col_new, col_old = st.columns(2)
+                new_m = metrics_data.get("new_model_metrics", {})
+                old_m = metrics_data.get("old_model_metrics", {})
+                
+                with col_new:
+                    st.markdown(f"**🆕 New Model ({new_ver})**")
+                    for k, v in new_m.items():
+                        st.metric(label=k, value=f"{v:.6f}")
+                
+                with col_old:
+                    if old_m:
+                        st.markdown(f"**📦 Previous Model ({old_ver})**")
+                        for k, v in old_m.items():
+                            delta = new_m.get(k, 0) - v
+                            delta_str = f"{delta:+.6f}"
+                            # For MAE/MSE/RMSE lower is better; for R2 higher is better
+                            inv = k == "R2"
+                            st.metric(label=k, value=f"{v:.6f}", delta=delta_str, delta_color="inverse" if not inv else "normal")
+                    else:
+                        st.info("No previous model to compare (first training run).")
+                
+                # --- Loss Curves ---
+                train_loss = metrics_data.get("train_loss_curve", [])
+                val_loss = metrics_data.get("val_loss_curve", [])
+                
+                if train_loss and val_loss:
+                    st.markdown("#### 📈 Training & Validation Loss Curves")
+                    import plotly.graph_objects as go
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(y=train_loss, name="Train Loss", mode="lines", line=dict(color="#FF6B6B")))
+                    fig.add_trace(go.Scatter(y=val_loss, name="Val Loss", mode="lines", line=dict(color="#4ECDC4")))
+                    fig.update_layout(
+                        xaxis_title="Epoch", yaxis_title="Loss",
+                        template="plotly_dark", height=350,
+                        margin=dict(l=20, r=20, t=30, b=20)
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # --- Prediction Plot (Step-1 Forecast) ---
+                pred_blob = bucket_obj.blob("results/predictions_latest.csv")
+                if pred_blob.exists():
+                    st.markdown("#### 🎯 Predicted vs Actual (Step-1 Forecast on Hold-out Test Set)")
+                    import io
+                    pred_df = pd.read_csv(io.BytesIO(pred_blob.download_as_bytes()))
+                    
+                    import plotly.graph_objects as go
+                    fig2 = go.Figure()
+                    fig2.add_trace(go.Scatter(
+                        y=pred_df["actual"], name="Actual",
+                        mode="lines", line=dict(color="#5B8FF9", width=1.5),
+                        opacity=0.7
+                    ))
+                    fig2.add_trace(go.Scatter(
+                        y=pred_df["predicted"], name="Predicted",
+                        mode="lines", line=dict(color="#FF6B6B", width=1.5, dash="dot"),
+                        opacity=0.9
+                    ))
+                    target_name = metrics_data.get("target", "Value")
+                    fig2.update_layout(
+                        xaxis_title="Sample Index",
+                        yaxis_title=target_name,
+                        template="plotly_dark", height=400,
+                        margin=dict(l=20, r=20, t=30, b=20),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    )
+                    st.plotly_chart(fig2, use_container_width=True)
+                    st.caption(f"Total samples: {len(pred_df)} | Target: {target_name}")
+                
+                # --- Meta Info ---
+                with st.expander("🗂️ Full Training Metadata"):
+                    st.json(metrics_data)
+        
+        except Exception as e:
+            st.error(f"❌ Failed to fetch results: {e}")

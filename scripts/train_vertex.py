@@ -98,6 +98,24 @@ def append_audit_log(gcs_bucket: str, message: str):
     blob.upload_from_string(existing + log_entry)
 
 
+def update_runs_index(gcs_bucket: str, run_entry: dict):
+    """Append a new run entry to the runs_index.json master list on GCS."""
+    from google.cloud import storage
+    client = storage.Client()
+    bucket = client.bucket(gcs_bucket)
+    blob = bucket.blob("results/runs_index.json")
+    
+    # Download existing index or start fresh
+    try:
+        existing = json.loads(blob.download_as_text())
+    except Exception:
+        existing = []
+    
+    existing.append(run_entry)
+    blob.upload_from_string(json.dumps(existing, indent=2))
+    print(f"[GCS] Updated runs_index.json with run '{run_entry['name']}'")
+
+
 # ---------------------------------------------------------------------------
 # Model & Training imports (reuse project source code)
 # ---------------------------------------------------------------------------
@@ -417,7 +435,27 @@ def run_training_pipeline(args):
         upload_to_gcs(pred_csv_local, f"{gcs_base}/results/predictions_latest.csv")
         print(f"  Predictions CSV uploaded ({len(pred_df)} samples).")
     
-    # 5d. Audit Log
+    # 5d. Named Run — save all artifacts to results/<run_name>/ subfolder
+    run_name = getattr(args, 'run_name', '') or f"{args.target}_{next_version}_{datetime.now(timezone.utc).strftime('%m%d')}"
+    run_prefix = f"{gcs_base}/results/{run_name}"
+    upload_to_gcs(metrics_local, f"{run_prefix}/metrics.json")
+    upload_to_gcs(best_model_path, f"{run_prefix}/model.pth")
+    if new_preds is not None:
+        upload_to_gcs(pred_csv_local, f"{run_prefix}/predictions.csv")
+    
+    # 5e. Update runs_index.json master list
+    run_entry = {
+        "name": run_name,
+        "version": next_version,
+        "target": args.target,
+        "site": args.site,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model_is_better": model_is_better,
+        "epochs_trained": len(train_losses),
+    }
+    update_runs_index(args.gcs_bucket, run_entry)
+    
+    # 5f. Audit Log
     if model_is_better:
         log_msg = f"Training completed. {next_version} is BETTER than {current_version}. MAE: {new_metrics['MAE']} vs {old_metrics['MAE'] if old_metrics else 'N/A'}"
     else:
@@ -457,6 +495,9 @@ if __name__ == "__main__":
     
     # Safety
     parser.add_argument("--timeout_minutes", type=int, default=30, help="Max training time in minutes")
+    
+    # Named Runs
+    parser.add_argument("--run_name", type=str, default="", help="Human-readable name for this training run")
     
     args = parser.parse_args()
     

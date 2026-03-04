@@ -287,8 +287,8 @@ with st.sidebar:
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Navigation Buttons
-    nav_pages = ["Chat", "About", "Dataset", "Retrain"]
-    nav_icons = {"Chat": "💬 Chat", "About": "📖 About Project", "Dataset": "📊 Dataset", "Retrain": "🔄 Retrain Model"}
+    nav_pages = ["Chat", "About", "Dataset", "Retrain", "Results"]
+    nav_icons = {"Chat": "💬 Chat", "About": "📖 About Project", "Dataset": "📊 Dataset", "Retrain": "🔄 Retrain Model", "Results": "🏆 Training Results"}
     
     for page in nav_pages:
         if st.session_state.current_page == page:
@@ -646,17 +646,41 @@ elif st.session_state.current_page == "Dataset":
     </div>
     """, unsafe_allow_html=True)
 
-    # ---- Load Data ----
-    DATA_PATH = Path(__file__).parent.parent / "Deep_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv"
-
     @st.cache_data
     def load_dataset():
-        df = pd.read_csv(DATA_PATH)
+        possibilities = [
+            Path(__file__).parent.parent / "Deep_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
+            Path(__file__).parent.parent / "Proposed_Models" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
+            Path(__file__).parent.parent / "CEEMD_Baselines" / "data" / "USGs" / "water_data_2021_2025_clean.csv",
+            Path(__file__).parent.parent / "Dataset" / "water_data_2021_2025_clean.csv",
+            Path(__file__).parent / "Dataset" / "water_data_2021_2025_clean.csv",
+            Path("Dataset/water_data_2021_2025_clean.csv"),
+            Path(__file__).parent.parent / "water_data_2021_2025_clean.csv",
+            Path(__file__).parent / "water_data_2021_2025_clean.csv",
+            Path("water_data_2021_2025_clean.csv"),
+        ]
+        
+        valid_path = None
+        for p in possibilities:
+            if p.exists():
+                valid_path = p
+                break
+                
+        if valid_path is None:
+            return None
+            
+        df = pd.read_csv(valid_path)
         df['Time'] = pd.to_datetime(df['Time'], utc=True)
         df = df.drop(columns=['Unnamed: 0'], errors='ignore')
         return df
 
     df_full = load_dataset()
+    
+    if df_full is None:
+        st.error("⚠️ **Dataset Not Found**")
+        st.info("The file `water_data_2021_2025_clean.csv` is missing from the repository. This is likely because the dataset is too large for GitHub. Please manually upload the CSV into the repository or provide a Cloud Storage link.")
+        st.stop()
+        
     feature_cols = ['Temp', 'Flow', 'EC', 'DO', 'pH', 'Turbidity']
     feature_units = {
         'Temp': '°C', 'Flow': 'ft³/s', 'EC': 'µS/cm',
@@ -950,10 +974,11 @@ elif st.session_state.current_page == "Retrain":
         except (KeyError, FileNotFoundError):
             pass
         
-        # Option 2: Local file (for development)
-        local_path = Path(__file__).parent / 'gcp-service-account.json'
-        if local_path.exists():
-            return str(local_path)
+        # Option 2: Local file (for development) — check dashboard dir then project root
+        for base in [Path(__file__).parent, Path(__file__).parent.parent]:
+            p = base / 'gcp-service-account.json'
+            if p.exists():
+                return str(p)
         
         return None
     
@@ -977,6 +1002,10 @@ elif st.session_state.current_page == "Retrain":
         target_col = st.selectbox("Target Feature", options=['EC', 'pH', 'DO', 'Temp', 'Flow', 'Turbidity'])
         site_no_str = st.text_input("USGS Site No (Optional, ignored if no such column in data)", value="")
         site_no = int(site_no_str) if site_no_str.strip() else 0
+        
+        import datetime as _dt
+        default_run = f"run_{_dt.datetime.now().strftime('%m%d_%H%M')}"
+        run_name = st.text_input("🏷️ Run Name (for result tracking)", value=default_run, help="Give this training run a memorable name, e.g. 'EC_experiment_v3'")
     
     with col2:
         st.markdown("### 🗃️ Upload New Dataset")
@@ -1112,7 +1141,8 @@ elif st.session_state.current_page == "Retrain":
                                         "--pred_len", str(pred_len),
                                         "--epochs", str(epochs),
                                         "--batch_size", str(batch_size),
-                                        "--timeout_minutes", "90"
+                                        "--timeout_minutes", "90",
+                                        "--run_name", run_name.strip().replace(' ', '_'),
                                     ]
                                 )
                                 
@@ -1146,117 +1176,364 @@ elif st.session_state.current_page == "Retrain":
                             st.caption("Please verify your GCP Project ID, Bucket Name, and Service Account permissions.")
 
     # =========================================================================
-    # Section: Check Training Results (always visible if authenticated)
+    # Quick link to Results page
     # =========================================================================
     st.markdown("---")
-    st.markdown("### 📊 Training Results")
-    st.caption("After the Vertex AI job finishes (5-15 min), click below to fetch and display the results.")
+    st.info("📊 **After your job finishes**, go to the **🏆 Training Results** page in the sidebar to view metrics, download artifacts, and get AI analysis.")
+    if st.button("🏆 Go to Training Results →", use_container_width=True):
+        set_page("Results")
+        st.rerun()
+
+
+# ==========================================
+# TRAINING RESULTS PAGE
+# ==========================================
+elif st.session_state.current_page == "Results":
+    import os
+    import json
+    import io
+    import tempfile
     
-    check_btn = st.button("🔍 Check Latest Training Results", use_container_width=True)
+    def _get_gcp_credentials_path_results():
+        """Resolve GCP credentials for Results page."""
+        try:
+            gcp_info = st.secrets["gcp_service_account"]
+            tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+            json.dump(dict(gcp_info), tmp)
+            tmp.close()
+            return tmp.name
+        except (KeyError, FileNotFoundError):
+            pass
+        # Check dashboard dir, then project root
+        for base in [Path(__file__).parent, Path(__file__).parent.parent]:
+            p = base / 'gcp-service-account.json'
+            if p.exists():
+                return str(p)
+        return None
     
-    if check_btn:
-        sa_key_path = _get_gcp_credentials_path()
-        if sa_key_path is None:
-            st.error("⚠️ **Missing GCP Credentials.** Either add `gcp_service_account` to Streamlit Secrets or place `gcp-service-account.json` in the dashboard folder.")
+    # ---- Page Header ----
+    st.markdown("""
+    <div class="hero" style="padding: 20px 16px 10px;">
+        <div class="hero-icon" style="font-size: 2.5rem;">🏆</div>
+        <h1>Training Results</h1>
+        <p>Browse past training runs, compare metrics, download artifacts, and get AI-powered analysis.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # ---- Auth ----
+    sa_path = _get_gcp_credentials_path_results()
+    if sa_path is None:
+        st.error("⚠️ **Missing GCP Credentials.** Add `gcp_service_account` to Streamlit Secrets or place `gcp-service-account.json` in the dashboard folder.")
+        st.stop()
+    
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = sa_path
+    
+    try:
+        from google.cloud import storage as gcs_storage
+        
+        bucket_name = st.session_state.get('gcs_bucket', 'hydropred-bucket-2026')
+        client = gcs_storage.Client()
+        bucket_obj = client.bucket(bucket_name)
+        
+        # ---- Load Runs Index ----
+        index_blob = bucket_obj.blob("results/runs_index.json")
+        runs = []
+        
+        with st.spinner("⏳ Fetching training runs from Google Cloud..."):
+            if index_blob.exists():
+                runs = json.loads(index_blob.download_as_text())
+            
+            # Fallback: if no runs_index exists, check for legacy metrics_latest.json
+            if not runs:
+                legacy_blob = bucket_obj.blob("results/metrics_latest.json")
+                if legacy_blob.exists():
+                    runs = [{"name": "latest", "version": "?", "target": "?", "timestamp": "N/A", "model_is_better": None}]
+        
+        if not runs:
+            st.warning("⏳ No training runs found yet. Deploy a training job first from the **🔄 Retrain Model** page.")
             st.stop()
         
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = sa_key_path
+        # ---- Run Selector ----
+        st.markdown("### 📋 Select Training Run")
         
-        try:
-            from google.cloud import storage as gcs_storage
-            
-            bucket_name = st.session_state.get('gcs_bucket', 'hydropred-bucket-2026')
-            client = gcs_storage.Client()
-            bucket_obj = client.bucket(bucket_name)
-            blob = bucket_obj.blob("results/metrics_latest.json")
-            
-            if not blob.exists():
-                st.warning("⏳ No results found yet. The training job may still be running. Try again in a few minutes.")
+        # Format labels for selectbox
+        run_labels = []
+        for r in reversed(runs):  # newest first
+            better_icon = "✅" if r.get("model_is_better") else ("❌" if r.get("model_is_better") is False else "❓")
+            ts = r.get("timestamp", "")[:16].replace("T", " ")
+            label = f"{better_icon} {r['name']}  |  {r.get('target', '?')}  |  {ts}"
+            run_labels.append(label)
+        
+        selected_idx = st.selectbox("Choose a run to inspect", range(len(run_labels)), format_func=lambda i: run_labels[i])
+        selected_run = list(reversed(runs))[selected_idx]
+        run_name = selected_run["name"]
+        
+        st.caption(f"**Run:** `{run_name}` | **Version:** {selected_run.get('version', '?')} | **Target:** {selected_run.get('target', '?')} | **Epochs:** {selected_run.get('epochs_trained', '?')}")
+        
+        # ---- Load Metrics for Selected Run ----
+        if run_name == "latest":
+            metrics_blob = bucket_obj.blob("results/metrics_latest.json")
+        else:
+            metrics_blob = bucket_obj.blob(f"results/{run_name}/metrics.json")
+        
+        if not metrics_blob.exists():
+            st.warning(f"Metrics file not found for run `{run_name}`.")
+            st.stop()
+        
+        with st.spinner("📊 Loading metrics from Google Cloud..."):
+            metrics_data = json.loads(metrics_blob.download_as_text())
+        
+        # ---- Verdict Banner ----
+        is_better = metrics_data.get("model_is_better", False)
+        new_ver = metrics_data.get("version", "?")
+        old_ver = metrics_data.get("previous_version", "?")
+        
+        if is_better:
+            st.success(f"🏆 **Model {new_ver} is BETTER than {old_ver}!** Auto-deploy recommended.")
+        else:
+            st.warning(f"⚠️ **Model {new_ver} did not outperform {old_ver}.** Consider keeping the current model.")
+        
+        # ---- Metrics Comparison ----
+        st.markdown("### 📊 Performance Metrics")
+        col_new, col_old = st.columns(2)
+        new_m = metrics_data.get("new_model_metrics", {})
+        old_m = metrics_data.get("old_model_metrics", {})
+        
+        with col_new:
+            st.markdown(f"**🆕 New Model ({new_ver})**")
+            for k, v in new_m.items():
+                st.metric(label=k, value=f"{v:.6f}")
+        
+        with col_old:
+            if old_m:
+                st.markdown(f"**📦 Previous Model ({old_ver})**")
+                for k, v in old_m.items():
+                    delta = new_m.get(k, 0) - v
+                    delta_str = f"{delta:+.6f}"
+                    inv = k == "R2"
+                    st.metric(label=k, value=f"{v:.6f}", delta=delta_str, delta_color="inverse" if not inv else "normal")
             else:
-                metrics_data = json.loads(blob.download_as_text())
-                
-                # --- Verdict Banner ---
-                is_better = metrics_data.get("model_is_better", False)
-                new_ver = metrics_data.get("version", "?")
-                old_ver = metrics_data.get("previous_version", "?")
-                
-                if is_better:
-                    st.success(f"🏆 **Model {new_ver} is BETTER than {old_ver}!** Auto-deploy recommended.")
-                else:
-                    st.warning(f"⚠️ **Model {new_ver} is WORSE than {old_ver}.** Consider keeping the current model.")
-                
-                # --- Metrics Table ---
-                col_new, col_old = st.columns(2)
-                new_m = metrics_data.get("new_model_metrics", {})
-                old_m = metrics_data.get("old_model_metrics", {})
-                
-                with col_new:
-                    st.markdown(f"**🆕 New Model ({new_ver})**")
-                    for k, v in new_m.items():
-                        st.metric(label=k, value=f"{v:.6f}")
-                
-                with col_old:
-                    if old_m:
-                        st.markdown(f"**📦 Previous Model ({old_ver})**")
-                        for k, v in old_m.items():
-                            delta = new_m.get(k, 0) - v
-                            delta_str = f"{delta:+.6f}"
-                            # For MAE/MSE/RMSE lower is better; for R2 higher is better
-                            inv = k == "R2"
-                            st.metric(label=k, value=f"{v:.6f}", delta=delta_str, delta_color="inverse" if not inv else "normal")
-                    else:
-                        st.info("No previous model to compare (first training run).")
-                
-                # --- Loss Curves ---
-                train_loss = metrics_data.get("train_loss_curve", [])
-                val_loss = metrics_data.get("val_loss_curve", [])
-                
-                if train_loss and val_loss:
-                    st.markdown("#### 📈 Training & Validation Loss Curves")
-                    import plotly.graph_objects as go
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatter(y=train_loss, name="Train Loss", mode="lines", line=dict(color="#FF6B6B")))
-                    fig.add_trace(go.Scatter(y=val_loss, name="Val Loss", mode="lines", line=dict(color="#4ECDC4")))
-                    fig.update_layout(
-                        xaxis_title="Epoch", yaxis_title="Loss",
-                        template="plotly_dark", height=350,
-                        margin=dict(l=20, r=20, t=30, b=20)
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                
-                # --- Prediction Plot (Step-1 Forecast) ---
-                pred_blob = bucket_obj.blob("results/predictions_latest.csv")
-                if pred_blob.exists():
-                    st.markdown("#### 🎯 Predicted vs Actual (Step-1 Forecast on Hold-out Test Set)")
-                    import io
-                    pred_df = pd.read_csv(io.BytesIO(pred_blob.download_as_bytes()))
-                    
-                    import plotly.graph_objects as go
-                    fig2 = go.Figure()
-                    fig2.add_trace(go.Scatter(
-                        y=pred_df["actual"], name="Actual",
-                        mode="lines", line=dict(color="#5B8FF9", width=1.5),
-                        opacity=0.7
-                    ))
-                    fig2.add_trace(go.Scatter(
-                        y=pred_df["predicted"], name="Predicted",
-                        mode="lines", line=dict(color="#FF6B6B", width=1.5, dash="dot"),
-                        opacity=0.9
-                    ))
-                    target_name = metrics_data.get("target", "Value")
-                    fig2.update_layout(
-                        xaxis_title="Sample Index",
-                        yaxis_title=target_name,
-                        template="plotly_dark", height=400,
-                        margin=dict(l=20, r=20, t=30, b=20),
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                    )
-                    st.plotly_chart(fig2, use_container_width=True)
-                    st.caption(f"Total samples: {len(pred_df)} | Target: {target_name}")
-                
-                # --- Meta Info ---
-                with st.expander("🗂️ Full Training Metadata"):
-                    st.json(metrics_data)
+                st.info("No previous model to compare (first training run).")
         
-        except Exception as e:
-            st.error(f"❌ Failed to fetch results: {e}")
+        # ---- Loss Curves ----
+        train_loss = metrics_data.get("train_loss_curve", [])
+        val_loss = metrics_data.get("val_loss_curve", [])
+        
+        if train_loss and val_loss:
+            st.markdown("### 📈 Training & Validation Loss Curves")
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(y=train_loss, name="Train Loss", mode="lines", line=dict(color="#FF6B6B", width=2)))
+            fig.add_trace(go.Scatter(y=val_loss, name="Val Loss", mode="lines", line=dict(color="#4ECDC4", width=2)))
+            fig.update_layout(
+                xaxis_title="Epoch", yaxis_title="Loss",
+                template="plotly_dark", height=380,
+                margin=dict(l=20, r=20, t=30, b=20)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # ---- Prediction Plot ----
+        if run_name == "latest":
+            pred_blob = bucket_obj.blob("results/predictions_latest.csv")
+        else:
+            pred_blob = bucket_obj.blob(f"results/{run_name}/predictions.csv")
+        
+        if pred_blob.exists():
+            st.markdown("### 🎯 Predicted vs Actual (Step-1 Forecast)")
+            
+            with st.spinner("📈 Loading prediction data..."):
+                pred_df = pd.read_csv(io.BytesIO(pred_blob.download_as_bytes()))
+            
+            fig2 = go.Figure()
+            fig2.add_trace(go.Scatter(
+                y=pred_df["actual"], name="Actual",
+                mode="lines", line=dict(color="#5B8FF9", width=1.5), opacity=0.7
+            ))
+            fig2.add_trace(go.Scatter(
+                y=pred_df["predicted"], name="Predicted",
+                mode="lines", line=dict(color="#FF6B6B", width=1.5, dash="dot"), opacity=0.9
+            ))
+            target_name = metrics_data.get("target", "Value")
+            fig2.update_layout(
+                xaxis_title="Sample Index", yaxis_title=target_name,
+                template="plotly_dark", height=400,
+                margin=dict(l=20, r=20, t=30, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+            st.caption(f"Total samples: {len(pred_df)} | Target: {target_name}")
+        
+        # ---- Download Section ----
+        st.markdown("### 💾 Download Artifacts")
+        dl_col1, dl_col2, dl_col3 = st.columns(3)
+        
+        with dl_col1:
+            metrics_bytes = metrics_blob.download_as_bytes()
+            st.download_button(
+                "📄 Download Metrics (JSON)", 
+                data=metrics_bytes, 
+                file_name=f"{run_name}_metrics.json",
+                mime="application/json",
+                use_container_width=True
+            )
+        
+        with dl_col2:
+            if pred_blob.exists():
+                pred_bytes = pred_blob.download_as_bytes()
+                st.download_button(
+                    "📊 Download Predictions (CSV)", 
+                    data=pred_bytes,
+                    file_name=f"{run_name}_predictions.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.button("📊 Predictions N/A", disabled=True, use_container_width=True)
+        
+        with dl_col3:
+            if run_name == "latest":
+                model_blob = bucket_obj.blob(f"models/model_{new_ver}.pth")
+            else:
+                model_blob = bucket_obj.blob(f"results/{run_name}/model.pth")
+            
+            if model_blob.exists():
+                model_bytes = model_blob.download_as_bytes()
+                st.download_button(
+                    "🧠 Download Model (.pth)", 
+                    data=model_bytes,
+                    file_name=f"{run_name}_model.pth",
+                    mime="application/octet-stream",
+                    use_container_width=True
+                )
+            else:
+                st.button("🧠 Model N/A", disabled=True, use_container_width=True)
+        
+        # ---- Gemini AI Chat ----
+        st.markdown("### 🤖 AI Analysis Chat")
+        st.caption("Start a conversation with Gemini about this training run. Ask follow-up questions anytime.")
+        
+        # Session state key per run
+        chat_key = f"results_chat_{run_name}"
+        
+        # Initialize chat history for this run if not exists
+        if chat_key not in st.session_state:
+            st.session_state[chat_key] = []  # empty = not started yet
+        
+        chat_history = st.session_state[chat_key]
+        
+        # Auto-trigger analysis on button click
+        if not chat_history:
+            if st.button("🤖 Start AI Analysis", use_container_width=True, type="primary"):
+                # Build the initial analysis prompt
+                analysis_prompt = f"""Analyze the following model training results and provide a professional, concise commentary in English.
+
+**Training Run:** {run_name}
+**Model Version:** {new_ver} (compared against {old_ver})
+**Target Variable:** {metrics_data.get('target', 'EC')}
+**Epochs Trained:** {metrics_data.get('epochs_trained', '?')}
+**Best Validation Loss:** {metrics_data.get('best_val_loss', 'N/A')}
+
+**New Model Metrics:** {json.dumps(new_m, indent=2)}
+**Old Model Metrics:** {json.dumps(old_m, indent=2) if old_m else 'N/A (first run)'}
+**Model is Better:** {is_better}
+
+**Train Loss Curve (last 5 epochs):** {train_loss[-5:] if train_loss else 'N/A'}
+**Val Loss Curve (last 5 epochs):** {val_loss[-5:] if val_loss else 'N/A'}
+
+Please provide:
+1. **Overall Verdict** — Is this a good model? Why or why not?
+2. **Metric Analysis** — Break down each metric (MAE, MSE, RMSE, R2) and what they mean for water quality forecasting.
+3. **Training Behavior** — Comment on overfitting, convergence, and early stopping.
+4. **Recommendation** — Should this model be deployed to production?
+
+Format your response with clear markdown headers and bullet points."""
+                
+                try:
+                    from chatbot import init_gemini
+                    setup = init_gemini()
+                    if setup:
+                        client = setup["client"]
+                        # Create a chat session with metrics context as system instruction
+                        from google.genai import types
+                        config = types.GenerateContentConfig(
+                            system_instruction=(
+                                "You are an expert ML engineer analyzing training results for a water quality forecasting model (SpikeDLinear). "
+                                "You have deep knowledge of time series forecasting, CEEMDAN decomposition, and environmental monitoring. "
+                                "Be concise, professional, and data-driven in your analysis."
+                            ),
+                        )
+                        results_chat = client.chats.create(model="gemini-3.1-pro-preview", config=config)
+                        st.session_state.results_gemini_client = client  # pin to prevent GC
+                        st.session_state[f"{chat_key}_session"] = results_chat
+                        
+                        # Send the initial analysis
+                        response = results_chat.send_message(analysis_prompt)
+                        chat_history.append({"role": "user", "content": "📊 Analyze this training run"})
+                        chat_history.append({"role": "assistant", "content": response.text})
+                        st.session_state[chat_key] = chat_history
+                        st.rerun()
+                    else:
+                        st.error("Could not initialize Gemini. Check your GEMINI_API_KEY.")
+                except Exception as e:
+                    st.error(f"AI Analysis failed: {e}")
+        
+        # Display chat history
+        if chat_history:
+            for msg in chat_history:
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+            
+            # Follow-up input
+            follow_up = st.chat_input("Ask a follow-up question about this training run...", key=f"chat_input_{run_name}")
+            if follow_up:
+                # Display user message immediately
+                with st.chat_message("user"):
+                    st.markdown(follow_up)
+                chat_history.append({"role": "user", "content": follow_up})
+                
+                # Reuse existing chat session (fast) or recreate if dead
+                results_chat = st.session_state.get(f"{chat_key}_session")
+                
+                try:
+                    with st.chat_message("assistant"):
+                        with st.spinner("Thinking..."):
+                            response = results_chat.send_message(follow_up)
+                        st.markdown(response.text)
+                    chat_history.append({"role": "assistant", "content": response.text})
+                    st.session_state[chat_key] = chat_history
+                except Exception:
+                    # Session died — recreate with history replay (one-time cost)
+                    try:
+                        from chatbot import init_gemini
+                        from google.genai import types
+                        setup = init_gemini()
+                        if setup:
+                            client = setup["client"]
+                            st.session_state.results_gemini_client = client  # pin to prevent GC
+                            config = types.GenerateContentConfig(
+                                system_instruction=(
+                                    "You are an expert ML engineer analyzing training results for a water quality forecasting model (SpikeDLinear). "
+                                    "You have deep knowledge of time series forecasting, CEEMDAN decomposition, and environmental monitoring. "
+                                    "Be concise, professional, and data-driven in your analysis."
+                                ),
+                            )
+                            results_chat = client.chats.create(model="gemini-3.1-pro-preview", config=config)
+                            for past_msg in chat_history[:-1]:
+                                results_chat.send_message(past_msg["content"])
+                            st.session_state[f"{chat_key}_session"] = results_chat
+                            
+                            with st.chat_message("assistant"):
+                                with st.spinner("Reconnecting & thinking..."):
+                                    response = results_chat.send_message(follow_up)
+                                st.markdown(response.text)
+                            chat_history.append({"role": "assistant", "content": response.text})
+                            st.session_state[chat_key] = chat_history
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+        
+        # ---- Full Metadata ----
+        with st.expander("🗂️ Full Training Metadata"):
+            st.json(metrics_data)
+    
+    except Exception as e:
+        st.error(f"❌ Failed to load results: {e}")
+

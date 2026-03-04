@@ -934,6 +934,28 @@ elif st.session_state.current_page == "Retrain":
     import time
     from google.cloud import aiplatform, storage
     import os
+    import json
+    import tempfile
+    
+    def _get_gcp_credentials_path():
+        """Resolve GCP credentials: Streamlit Secrets first, then local file."""
+        # Option 1: Streamlit Secrets (for Streamlit Cloud)
+        try:
+            gcp_info = st.secrets["gcp_service_account"]
+            # Write to a temp file so google-cloud SDK can read it
+            tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+            json.dump(dict(gcp_info), tmp)
+            tmp.close()
+            return tmp.name
+        except (KeyError, FileNotFoundError):
+            pass
+        
+        # Option 2: Local file (for development)
+        local_path = Path(__file__).parent / 'gcp-service-account.json'
+        if local_path.exists():
+            return str(local_path)
+        
+        return None
     
     st.markdown("""
     <div class="hero" style="padding: 20px 16px 10px;">
@@ -1028,16 +1050,16 @@ elif st.session_state.current_page == "Retrain":
                 
                 # If authenticated, show the trigger button
                 if st.session_state.get('is_admin_auth', False):
-                    # Check for service account key file
-                    sa_key_path = Path(__file__).parent / 'gcp-service-account.json'
-                    if not sa_key_path.exists():
-                        st.error(f"⚠️ **Missing Service Account Key:** Please place your `gcp-service-account.json` file in the project root ({sa_key_path.parent}) before deploying.")
+                    # Check for service account credentials
+                    sa_key_path = _get_gcp_credentials_path()
+                    if sa_key_path is None:
+                        st.error("⚠️ **Missing GCP Credentials.** Either add `gcp_service_account` to Streamlit Secrets or place `gcp-service-account.json` in the dashboard folder.")
                         st.stop()
                     
                     trigger_btn = st.button("🚀 Confirm & Deploy Training Job to Vertex AI", type="primary", use_container_width=True)
                     
                     if trigger_btn:
-                        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(sa_key_path)
+                        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = sa_key_path
                         bucket = st.session_state['gcs_bucket']
                         project = st.session_state['gcp_project']
                         region = "asia-southeast1"
@@ -1133,12 +1155,12 @@ elif st.session_state.current_page == "Retrain":
     check_btn = st.button("🔍 Check Latest Training Results", use_container_width=True)
     
     if check_btn:
-        sa_key_path = Path(__file__).parent / 'gcp-service-account.json'
-        if not sa_key_path.exists():
-            st.error("⚠️ Missing `gcp-service-account.json`. Cannot connect to GCS.")
+        sa_key_path = _get_gcp_credentials_path()
+        if sa_key_path is None:
+            st.error("⚠️ **Missing GCP Credentials.** Either add `gcp_service_account` to Streamlit Secrets or place `gcp-service-account.json` in the dashboard folder.")
             st.stop()
         
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(sa_key_path)
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = sa_key_path
         
         try:
             from google.cloud import storage as gcs_storage

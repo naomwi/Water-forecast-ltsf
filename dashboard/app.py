@@ -658,6 +658,10 @@ elif st.session_state.current_page == "Dataset":
             Path(__file__).parent.parent / "water_data_2021_2025_clean.csv",
             Path(__file__).parent / "water_data_2021_2025_clean.csv",
             Path("water_data_2021_2025_clean.csv"),
+            # Fallback to the minimal/sample dataset
+            Path(__file__).parent.parent / "Deep_Baselines" / "data" / "USGs" / "water_data_sample.csv.gz",
+            Path(__file__).parent.parent / "water_data_sample.csv.gz",
+            Path("water_data_sample.csv.gz")
         ]
         
         valid_path = None
@@ -669,10 +673,16 @@ elif st.session_state.current_page == "Dataset":
         if valid_path is None:
             return None
             
-        df = pd.read_csv(valid_path)
-        df['Time'] = pd.to_datetime(df['Time'], utc=True)
-        df = df.drop(columns=['Unnamed: 0'], errors='ignore')
-        return df
+        with st.spinner("⏳ Loading dataset into memory..."):
+            df = pd.read_csv(valid_path)
+            df['Time'] = pd.to_datetime(df['Time'], utc=True)
+            df = df.drop(columns=['Unnamed: 0'], errors='ignore')
+            
+            # Show an info message if we had to use the sample dataset
+            if "sample" in str(valid_path):
+                st.info("ℹ️ **Using Sample Dataset**: The full dataset is excluded from version control. Displaying `water_data_sample.csv.gz` (~1000 rows) instead.")
+            
+            return df
 
     df_full = load_dataset()
     

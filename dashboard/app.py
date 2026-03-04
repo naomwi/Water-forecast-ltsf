@@ -271,16 +271,16 @@ with st.sidebar:
     
     st.markdown("""
     <div class="sb-card">
-        <strong>🌊 Water Quality Expert</strong>
-        <span>Trained on EC & pH forecasting data across multiple USGS monitoring sites.</span>
+        <strong>🌊 LTSF Framework</strong>
+        <span>Long-Term Short-Term Forecasting for critical water metrics (EC, pH, Turbidity).</span>
     </div>
     <div class="sb-card">
-        <strong>🧠 6 AI Models</strong>
-        <span>SpikeDLinear · CEEMD-DLinear · CEEMD-NLinear · LSTM · PatchTST · Transformer</span>
+        <strong>🧠 SpikeDLinear Model</strong>
+        <span>Novel architecture combining CEEMDAN signal decomposition with DLinear networks.</span>
     </div>
     <div class="sb-card">
-        <strong>📄 Full Report Access</strong>
-        <span>Methodology, experimental results, and analysis from the team's capstone report.</span>
+        <strong>📊 USGS Data (2021-2025)</strong>
+        <span>Trained and evaluated on multi-year data from 6 diverse monitoring sites.</span>
     </div>
     """, unsafe_allow_html=True)
 

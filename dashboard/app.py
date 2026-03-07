@@ -728,14 +728,85 @@ elif st.session_state.current_page == "Dataset":
     </div>
     """, unsafe_allow_html=True)
 
+    # ---- Site Map Preview ----
+    st.markdown('<div class="ds-section-title">🗺️ Monitoring Sites Map</div>', unsafe_allow_html=True)
+    map_data = pd.DataFrame({
+        'USGS_Site': ['01463500', '01646500', '03216070', '03321500', '14211720'],
+        'Name': [
+            'Sông Delaware tại Trenton, New Jersey',
+            'Sông Potomac gần Washington, D.C.',
+            'Sông Ohio tại Ironton, Ohio',
+            'Sông Green tại Spottsville, Kentucky',
+            'Sông Willamette tại Portland, Oregon'
+        ],
+        'latitude': [40.2216, 38.9497, 38.5320, 37.8583, 45.5175],
+        'longitude': [-74.7780, -77.1276, -82.6859, -87.4097, -122.6691]
+    })
+    fig = px.scatter_mapbox(
+        map_data, 
+        lat="latitude", 
+        lon="longitude", 
+        hover_name="Name", 
+        custom_data=["USGS_Site"],
+        hover_data={"USGS_Site": True, "latitude": False, "longitude": False},
+        color_discrete_sequence=["#ff7b00"],
+        zoom=3.5, 
+        height=400
+    )
+    fig.update_layout(
+        mapbox_style="carto-darkmatter",
+        margin={"r":0,"t":0,"l":0,"b":0},
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        clickmode='event+select'
+    )
+    
+    # Render map with selection enabled
+    map_selection = st.plotly_chart(
+        fig, 
+        use_container_width=True, 
+        on_select="rerun",
+        selection_mode="points"
+    )
+
     # ---- Site Selector ----
     st.markdown('<div class="ds-section-title">🏗️ Select Monitoring Site</div>', unsafe_allow_html=True)
-    site_labels = {s: f"USGS Site {s}" for s in sites}
+    
+    site_info = {
+        1463500: "USGS 01463500: Sông Delaware tại Trenton, NJ",
+        1646500: "USGS 01646500: Sông Potomac gần Washington, D.C.",
+        3216070: "USGS 03216070: Sông Ohio tại Ironton, OH",
+        3321500: "USGS 03321500: Sông Green tại Spottsville, KY",
+        14211720: "USGS 14211720: Sông Willamette tại Portland, OR"
+    }
+    
+    # Handle map click state
+    if "selected_site_idx" not in st.session_state:
+        st.session_state.selected_site_idx = 0
+        
+    if map_selection and "selection" in map_selection and map_selection["selection"]["points"]:
+        clicked_site_str = map_selection["selection"]["points"][0]["customdata"][0]
+        # Find index of clicked site in the sites list
+        for i, s in enumerate(sites):
+            if str(s).zfill(8) == str(clicked_site_str).zfill(8) or str(s) == str(clicked_site_str):
+                st.session_state.selected_site_idx = i
+                st.session_state.site_selector = s
+                break
+
+    site_labels = {s: site_info.get(int(s) if str(s).isdigit() else s, f"USGS Site {s}") for s in sites}
+    
+    # Update selected_site_idx when selectbox changes
+    def update_site_idx():
+        st.session_state.selected_site_idx = sites.index(st.session_state.site_selector)
+        
     selected_site = st.selectbox(
         "Choose a USGS monitoring site to explore",
         options=sites,
+        index=st.session_state.selected_site_idx,
         format_func=lambda x: site_labels[x],
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key="site_selector",
+        on_change=update_site_idx
     )
     df_site = df_full[df_full['site_no'] == selected_site].copy().reset_index(drop=True)
     st.caption(f"Showing **{len(df_site):,}** hourly observations for USGS Site **{selected_site}** — from **{df_site['Time'].min().strftime('%b %d, %Y')}** to **{df_site['Time'].max().strftime('%b %d, %Y')}**")

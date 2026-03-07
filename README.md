@@ -1,14 +1,14 @@
 # HydroPred: Water Quality Forecasting Framework
 
-**HydroPred** is a comprehensive, rigorous benchmarking framework developed as part of our group project for predicting critical water quality metrics of a water treatment factory. 
+**HydroPred** is a comprehensive, rigorous benchmarking framework developed as part of our group project for predicting critical water quality metrics of a water treatment factory. It focuses on **Long-Term Short-Term Forecasting (LTSF)** for vital water metrics such as Electrical Conductivity (EC), pH, and Turbidity.
 
-The project aims to provide strong baseline models and introduces **SpikeDLinear**, an advanced Proposed Model that leverages spiking neural network principles and DLinear structures to handle non-stationary and volatile water quality data effectively.
+The project evaluates standard baselines and introduces **SpikeDLinear**, a novel Proposed Model architecture combining CEEMDAN signal decomposition with DLinear networks and spiking neural network principles to handle non-stationary and volatile water quality data effectively. Models are trained and thoroughly evaluated on **USGS multi-year data (2021-2025)** from 6 diverse monitoring sites.
 
 ## 👥 Team Members
-- Member 1: [Trần Quang Thái] - [0009-0000-4674-4388]
-- Member 2: [Nguyễn Tấn Khôi Nguyên] - [0009-0009-7970-9883]
-- Member 3: [Trịnh Tiến Khải] - [0009-0002-0447-5743]
-- Member 4: [Phan Tấn Phước] - [0009-0003-7078-9406]
+- Member 1: Trần Quang Thái - ORCID: [0009-0000-4674-4388](https://orcid.org/0009-0000-4674-4388)
+- Member 2: Nguyễn Tấn Khôi Nguyên - ORCID: [0009-0009-7970-9883](https://orcid.org/0009-0009-7970-9883)
+- Member 3: Trịnh Tiến Khải - ORCID: [0009-0002-0447-5743](https://orcid.org/0009-0002-0447-5743)
+- Member 4: Phan Tấn Phước - ORCID: [0009-0003-7078-9406](https://orcid.org/0009-0003-7078-9406)
 
 ## 📁 Project Structure
 
@@ -52,7 +52,7 @@ This will open the dashboard in your default browser at `http://localhost:8501`.
 
 ## 📈 Experiments & Results
 All pre-run benchmarking results are organized inside their respective models' `results/` folders. 
-If you wish to re-run experiments from scratch, you can use the generalized runners available in the `scripts/` directory (e.g., `python scripts/run_all_experiments.py --quick`).
+If you wish to re-run experiments from scratch, you can use the generalized runners available in the root directory (e.g., `python run_all_experiments.py --quick`).
 
 ### 4. Run All Experiments
 To run all experiments, execute the `run_all_experiments.py` script:

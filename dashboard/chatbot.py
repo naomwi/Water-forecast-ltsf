@@ -8,6 +8,7 @@ from data_loader import get_global_kpi_summary
 # Load environment variables (e.g. API Key)
 load_dotenv()
 
+@st.cache_resource
 def init_gemini():
     """Initializes the Gemini client using API key from .env or st.secrets."""
     load_dotenv()

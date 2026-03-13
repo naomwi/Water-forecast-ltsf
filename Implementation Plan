@@ -1,0 +1,55 @@
+# Chatbot & Data Dashboard Implementation Plan
+
+This document outlines the plan to build the analytical dashboard requested in `Dùng.docx`, featuring an AI Chatbot as the central interface and a dedicated Data visualization view.
+
+## User Review Required
+
+> [!IMPORTANT]
+> Please review this plan. This defines exactly what we will build. If you agree, we will move to the EXECUTION phase.
+
+## Proposed Changes
+
+We will create a new frontend project using **Next.js (App Router)**, styled with **Tailwind CSS** and **shadcn/ui** components. We will use **Recharts** for the data visualizations (Heatmap, Line charts for Predicted vs Actual, and Bar charts for Metrics).
+
+### Project Foundation & Applied Skills
+- Initialize a new Next.js project.
+- Install necessary dependencies (`lucide-react`, `recharts`, `clsx`, `tailwind-merge`, etc.).
+- The following Agent Skills will be activated to ensure high-quality execution:
+  - **Frontend & UI/UX:** `@ui-ux-pro-max`, `@antigravity-design-expert` (clean, professional light-mode aesthetic mirroring the reference image: white/light-gray backgrounds, with Blue, Green, Yellow, and Orange chart accents), `@typescript-pro` (strict typing), `@nextjs-app-router-patterns` (Next.js architecture), `@shadcn`, `@tailwind-patterns`.
+  - **Code Quality & Workflow:** `@clean-code` and `@tdd-workflows-tdd-cycle` (Test-Driven Development approach).
+  - **Core Productivity:** `@debugger` (for proactive error-solving).
+### Layout & Navigation Component
+- A persistent Topbar containing navigation between the **Chat Assistant** route and the **Data Explorer** route.
+- **Strict Single-Screen Constraint (No Scroll):** The Data Explorer page will be engineered to fit exactly within 100vh (100% viewport height). Scrolling is strictly forbidden on the Data Explorer page. Only the Chatbot is allowed to scroll its message history.
+
+### Map Component (Data Station Selection)
+- Integrated directly into the Data Explorer page (Left side).
+- A Map view (using a library like `react-leaflet` or `mapbox-gl`) to intuitively display and select data stations, eliminating the need for a dropdown.
+
+### Chatbot Interface (Main/Home View)
+- A conversational UI mimicking ChatGPT/Claude.
+- Integrated natively with the **Gemini API (model: `gemini-3.1-pro-preview`)**.
+- **Context Injection & Caching (HydroPred Logic):** 
+  - The application will cache and summarize the global KPI benchmarks (MAE, RMSE, R-squared) across stations/targets for the Proposed Model (`SpikeDLinear`).
+  - When the user asks a question, the backend will dynamically detect prediction intent. If detected, it will fetch the precise forecasted window (using cached dataframe responses) and append the live prediction data explicitly into the prompt alongside the `report_context.txt` system instructions context.
+  - Vercel AI SDK or direct Google GenAI SDK will be utilized, taking care to cache the System Instructions and static data to optimize token load and latency.
+- Context-aware: The chatbot will know the currently selected context (from the UI or auto-detected). Allowed to scroll vertically to view chat history.
+
+### Data Explorer Interface (Focus: Proposed Model, Right side)
+- The user will be redirected here when pressing "Data".
+- **Layout Definition:** Left side (Map), Right side (Data Visualizations), top bar for parameter selection (Targets, Horizons). The entire layout fits rigidly into the viewport (100vh).
+Focused strictly on the outputs and metrics of the **Proposed Model** (SpikeDLinear).
+- **Predicted vs Actual Line Chart:** Showing time-series forecasting results for the selected station and target.
+- **Correlation Heatmap:** A visual matrix showing relationships in the dataset.
+- **Metrics Overview:** KPI cards showing MAE, MSE, RMSE, R-squared specifically for the Proposed Model run at the selected site.
+
+## Verification Plan
+
+### Automated Tests
+- Build process succeeds (`npm run build`).
+- Linter passes with no errors.
+
+### Manual Verification
+- Run `npm run dev` and navigate the locally hosted site.
+- Verify the toggle between Chat and Data views works seamlessly.
+- Ensure the charts render correctly with the mock data and look visually stunning.

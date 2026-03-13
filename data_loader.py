@@ -1,6 +1,12 @@
 import os
 import pandas as pd
-import streamlit as st
+try:
+    import streamlit as st
+    cache_data = st.cache_data
+except ImportError:
+    st = None
+    def cache_data(func):
+        return func
 from pathlib import Path
 
 # Project root directory (same level as dashboard)
@@ -16,7 +22,7 @@ MODEL_FOLDERS = {
     'Transformer': ('Deep_Baselines', 'transformer'),
 }
 
-@st.cache_data
+@cache_data
 def get_available_sites():
     """Dynamically extract available sites from trained metric files across all models."""
     sites = set()
@@ -52,7 +58,7 @@ def get_available_sites():
         
     return sorted(list(sites))
 
-@st.cache_data
+@cache_data
 def get_global_kpi_summary():
     """Reads all basic KPIs to build a single string representing the entire benchmark results."""
     sites = get_available_sites()
@@ -82,7 +88,7 @@ def get_global_kpi_summary():
                     
     return "\n".join(summary_lines)
 
-@st.cache_data
+@cache_data
 def load_metrics(target, horizon, site, model_name="SpikeDLinear"):
     """
     Load KPIs (MAE, R2, etc.) for a specific Target, Horizon, and Site.
@@ -113,7 +119,7 @@ def load_metrics(target, horizon, site, model_name="SpikeDLinear"):
     
     return None
 
-@st.cache_data
+@cache_data
 def load_series(target, horizon, site, model_name="SpikeDLinear"):
     """
     Load the prediction series vs actual series data.

@@ -1,0 +1,5 @@
+Dùng @brainstorming để thiết kế ra kế hoạch , đồng thời dung chính skill này để chọn các skill cần thiết cho việc thực hiện kế hoạch , vd như @typescript-pro , ui/ux pro design ,…
+
+Hãy đưa ra các phương án khả thi , rồi hỏi thật kĩ những gì mình muốn, từng trang một, những gì bạn đang nghĩ cũng phải qua mình duyệt
+
+Design một cái giao diện, gồm chatbot giải thích , một cái nút Data mà khi mình bấm vào đó mình có thế thấy hết các thông tin về dataset trong 1 trang( Gồm predicted vs actual , correlation heat map , metrics)   , cụ thể thì tham khảo cái này , mình nghĩ bạn sẽ phải tạo một cái website mới 
